@@ -221,6 +221,8 @@ def leaguestandings():
 
 # interface
 
+newleaguebutton()
+
 toolbar = Frame(root, bg="blue", width=600)
 
 newPlayersButton = Button(toolbar, text="New League", command=newleaguebutton)
