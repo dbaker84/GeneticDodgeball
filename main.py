@@ -1,9 +1,20 @@
 __author__ = 'Daniel Baker'
 
+# TODO:
+#
+# Nicknames
+# New targeting algorithm
+# Add speed/turn order
+# Add team creation
+# Add time/calender system
+# fix bug when last out is visitor's throw being caught
+
+
 from tkinter import *
 import random
 import statistics
 import operator
+import math
 
 root = Tk()
 
@@ -12,18 +23,54 @@ freeagents = []
 teams = []
 curnum = 1
 
-sclamp = lambda n: max(min(100, n), 1)
+
+# global variables for decoding genomes
+posfactor = 4
+divfactor = 5
+negfactor = 4
+
+stats = [["dodge", "A", "C", "D"],
+        ["catch", "B", "D", "X"],
+        ["tpower", "C", "F", "O"],
+        ["taccuracy", "D", "P", "U"],
+        ["stamina", "E", "B", "N"],
+        ["tricky", "F", "O", "K"],
+        ["awareness", "G", "J", "Z"],
+        ["tactics", "H", "H", "R"],
+        ["pconsist", "J", "N", "P"],
+        ["mconsist", "K", "Z", "H"],
+        ["leadership", "L", "U", "A"],
+        ["flair", "M", "W", "Q"],
+        ["speed", "N", "G", "T"],
+        ["clutch", "O", "R", "W"],
+        ["deflection", "P", "Q", "J"],
+        ["ego", "Q", "M", "B"],
+        ["coachability", "R", "E", "G"],
+        ["nerves", "S", "Y", "E"],
+        ["workethic", "T", "T", "F"],
+        ["charisma", "U", "X", "C"],
+        ["unused", "W", "S", "L"],
+        ["patience", "X", "L", "M"],
+        ["ethics", "Y", "K", "S"],
+        ["winner", "Z", "A", "Y"]]
+
+geneseq = "ABCDEFGHJKLMNOPQRSTUWXYZ"
+
+
+
+sclamp = lambda n: round(max(min(100, n), 1))
 
 class Team:
     def __init__(self, name, roster):
         self.name = name
         self.roster = roster
+        self.id = -1
+        # self.id = random.randrange(10, 9999999)
 
         troster = []
         for x in self.roster:
             troster.append(x.rating)
 
-        self.rating = round(statistics.mean(troster))
         self.consistency = round(statistics.stdev(troster))
 
         self.wins = 0
@@ -31,46 +78,88 @@ class Team:
         self.winpercent = 0.000
         self.active = True
 
+    def offrating(self):
+        troster = []
+        for x in self.roster:
+            troster.append(x.offense)
+        return round(statistics.mean(troster))
+
+    def defrating(self):
+        troster = []
+        for x in self.roster:
+            troster.append(x.defense)
+        return round(statistics.mean(troster))
+
 class Player:
-    def __init__(self, name, number, ftwitch, stwitch, ndensity, nspeed, lcoord):
+    def __init__(self, name, number, genome):
         self.name = name
         self.number = number
+        self.nickname = None
 
-        # genes
+        for stat in stats:
+            setattr(self, stat[0], sclamp(((((getattr(genome, stat[1]).value + random.uniform(-(math.sqrt(getattr(genome, stat[1]).error)), (math.sqrt(getattr(genome, stat[1]).error)))) *
+                        posfactor) + (getattr(genome, stat[2]).value + random.uniform(-(math.sqrt(getattr(genome, stat[2]).error)),
+                        (math.sqrt(getattr(genome, stat[2]).error))))) / divfactor) - ((getattr(genome, stat[3]).value +
+                        random.uniform(-(math.sqrt(getattr(genome, stat[3]).error)), (math.sqrt(getattr(genome, stat[3]).error)))) / negfactor)))
 
-        self.ftwitch = ftwitch
-        self.stwitch = stwitch
-        self.ndensity = ndensity
-        self.nspeed = nspeed
-        self.lcoord = lcoord
-
-        # derived stats
-        # Physical
-        self.dodge = round((nspeed.value + ftwitch.value) / 2)
-        self.catch = round((nspeed.value + lcoord.value) / 2)
-        self.throwstr = round((ftwitch.value + lcoord.value) / 2)
-        self.throwacc = round((lcoord.value + nspeed.value) / 2)
-        self.stamina = stwitch.value
-        self.size = round((ftwitch.value + stwitch.value))
-
-        # mental
-        self.awareness = round((lcoord.value + ndensity.value) / 2)
-        self.tactics = round((ndensity.value + nspeed.value) / 2)
-        self.pcons = round(random.randrange(1, 100))
-        self.mcons = round(random.randrange(1, 100))
+        # print("the dodge for ", self.name, " is ", str(self.dodge))
+        # print("the catch for ", self.name, " is ", str(self.catch))
+        # print("the flair for ", self.name, " is ", str(self.flair))
 
         # all players start alive
         self.alive = True
+        self.teamid = 0
 
-        self.rating = round((self.dodge + self.catch + self.throwstr + self.throwacc + self.stamina + self.awareness + self.tactics) / 7)
+        self.offhate = random.randrange(1, 100)
+        self.defhate = random.randrange(1, 100)
+        self.inthate = random.randrange(1, 100)
+        self.pershate = random.randrange(1, 100)
 
-        self.hit = 0
+        self.defense = self.awareness + self.dodge + self.catch + self.deflection + self.nerves
+        self.offense = self.tpower + self.taccuracy + self.tactics + self.tricky + self.speed
+        self.intangibles = self.leadership + self.clutch + self.winner + self.patience + self.workethic
+        self.personality = self.flair + self.charisma + self.ego + self.ethics + self.coachability
+        self.rating = self.defense + self.offense + self.intangibles + self.personality
+
+        # print("the rating for ", self.name, " is ", str(self.rating))
+
+        self.career_dodge_fail = 0
+        self.career_catch_fail = 0
+        self.career_deflect_fail = 0
+        self.career_dodge_succ = 0
+        self.career_catch_succ = 0
+        self.career_deflect_succ = 0
+        self.career_opp_hits = 0
+        self.career_wins = 0
+        self.career_losses = 0
+
+    def targetvalue(self, thrower):
+        x = ((self.offense * thrower.offhate) + (self.defense * thrower.defhate) +
+             (self.intangibles * thrower.inthate) + (self.personality * thrower.pershate)) * varyby(thrower.tactics)
+        print(self.name, str(x))
+        return x
 
 
 class Gene:
-    def __init__(self, value, dominance):
-        self.value = value
-        self.dominance = dominance
+    def __init__(self):
+        self.value = random.randrange(1, 100)
+        self.dominance = random.randrange(1, 100)
+        self.error = random.randrange(1, 100)
+
+
+class Genome:
+    def __init__(self):
+        for x in geneseq:
+            setattr(self, x, Gene())
+
+
+
+
+def creategenome():
+    mygenome = Genome()
+    # for x in "ABCDEFGHJKLMNOPQRSTUWXYZ":
+    #    print(getattr(mygenome, x).value, getattr(mygenome, x).dominance, getattr(mygenome, x).error)
+    return mygenome
 
 def createplayer():
     filename = open("GermanFirst.txt")
@@ -90,12 +179,7 @@ def createplayer():
 
     # Generate Genome
 
-    newplayer = Player(tempname, curnum,
-                       Gene(random.randrange(1, 100), random.randrange(1, 100)),
-                       Gene(random.randrange(1, 100), random.randrange(1, 100)),
-                       Gene(random.randrange(1, 100), random.randrange(1, 100)),
-                       Gene(random.randrange(1, 100), random.randrange(1, 100)),
-                       Gene(random.randrange(1, 100), random.randrange(1, 100)))
+    newplayer = Player(tempname, curnum, Genome())
 
     # for item in newPlayer:
     #     print(item, " ", newPlayer[item])
@@ -118,8 +202,12 @@ def newteams(x):
         temproster = []
         for j in range(1, 6):
             temproster.append(freeagents.pop(random.randint(0, len(freeagents)-1)))
-
         teams.append(Team(namelist.pop(random.randint(0, len(namelist)-1)), temproster))
+
+    for k in range(0, len(teams)):
+        teams[k].id = k
+        for m in teams[k].roster:
+            m.teamid = teams[k].id
 
 
 def newleaguebutton():
@@ -152,8 +240,8 @@ def randomroster():
         Label(tempframe, text=i.name).grid(row=ticker, column=1)
         Label(tempframe, text=i.dodge).grid(row=ticker, column=2)
         Label(tempframe, text=i.catch).grid(row=ticker, column=3)
-        Label(tempframe, text=i.throwacc).grid(row=ticker, column=4)
-        Label(tempframe, text=i.throwstr).grid(row=ticker, column=5)
+        Label(tempframe, text=i.accuracy).grid(row=ticker, column=4)
+        Label(tempframe, text=i.power).grid(row=ticker, column=5)
         Label(tempframe, text=i.stamina).grid(row=ticker, column=6)
         Label(tempframe, text=i.awareness).grid(row=ticker, column=7)
         Label(tempframe, text=i.tactics).grid(row=ticker, column=8)
@@ -223,7 +311,7 @@ def leaguestandings():
 
 newleaguebutton()
 
-toolbar = Frame(root, bg="blue", width=600)
+toolbar = Frame(root, bg="blue")
 
 newPlayersButton = Button(toolbar, text="New League", command=newleaguebutton)
 newPlayersButton.pack(side=LEFT, padx=2, pady=2)
@@ -237,16 +325,126 @@ playMatchButton.pack(side=LEFT, padx=2, pady=2)
 playSeasonButton = Button(toolbar, text="Play Full Season", command=playseason)
 playSeasonButton.pack(side=LEFT, padx=2, pady=2)
 
-playMatchButton = Button(toolbar, text="League Standings", command=leaguestandings)
-playMatchButton.pack(side=LEFT, padx=2, pady=2)
+leagueStandingsButton = Button(toolbar, text="League Standings", command=leaguestandings)
+leagueStandingsButton.pack(side=LEFT, padx=2, pady=2)
+
+testTargetButton = Button(toolbar, text="Test Targeting", command=lambda: throwround(teams[0], teams[1]))
+testTargetButton.pack(side=LEFT, padx=2, pady=2)
+
+testGenomeButton = Button(toolbar, text="Generate Genome", command=creategenome())
+testGenomeButton.pack(side=LEFT, padx=2, pady=2)
 
 toolbar.pack(side=TOP, fill=X)
 
 mainbox = Frame(root, relief=SUNKEN)
 mainbox.pack()
 
+def throwround(team1, team2):
+    for child in mainbox.winfo_children():
+        child.destroy()
+
+    tempframe = Frame(mainbox)
+    tempframe.pack()
+
+    text2 = Text(mainbox, height=400, width=200)
+    scroll = Scrollbar(root, command=text2.yview)
+    text2.configure(yscrollcommand=scroll.set)
+    text2.insert(END, 'follow-up\n')
+    text2.pack()
+    scroll.pack(side=RIGHT, fill=Y)
+
+    home = team1
+    visitor = team2
+
+    # print(home.name + " " + ' '.join([str(item.name) for item in home.roster]) + " " + str(home.offrating()) + " " + str(home.defrating()))
+    # print(visitor.name + " " + ' '.join([str(item.name) for item in visitor.roster]) + " " + str(visitor.offrating()) + " " + str(visitor.defrating()))
+
+    while len(home.roster) > 0 and len(visitor.roster) > 0:
+        for x in home.roster:
+            if len(home.roster) and len(visitor.roster) != 0:
+                target = selecttarget(x, visitor)
+                result = throw(x, target)
+                words = (x.name + " throws at " + target.name + " and there is a " + str(result) + "\n")
+                text2.insert(END, words)
+                if result == "hit":
+                    visitor.roster.pop(visitor.roster.index(target))
+                if result == "catch":
+                    home.roster.pop(home.roster.index(x))
+        text2.insert(END, "-- Switch Sides --\n")
+        for x in visitor.roster:
+            if len(home.roster) and len(visitor.roster) != 0:
+                target = selecttarget(x, home)
+                result = throw(x, target)
+                words = (x.name + " throws at " + target.name + " and there is a " + str(result) + "\n")
+                text2.insert(END, words)
+                if result == "hit":
+                    home.roster.pop(home.roster.index(target))
+                if result == "catch":
+                    visitor.roster.pop(visitor.roster.index(x))
+        text2.insert(END, "-- End of Round --\n")
+
+    if len(home.roster) == 0:
+        text2.insert(END, "-- Visitors Win --\n")
+    else:
+        text2.insert(END, "-- Home Wins --\n")
+
+    text2.insert(END, "-- Remaining Players --\n")
+    text2.insert(END, "- Home -\n")
+    for y in home.roster:
+        text2.insert(END, y.name + "\n")
+    text2.insert(END, "- Visitors -\n")
+    for y in visitor.roster:
+        text2.insert(END, y.name + "\n")
 
 
+def selecttarget(thrower, opponents):
+    # check for panic throw
+    target = random.choice(opponents.roster)
+    if random.randrange(1, 100) < getgauss(thrower.nerves, thrower.pconsist):
+        for x in opponents.roster:
+            if target.targetvalue(thrower) < x.targetvalue(thrower):
+                target = x
+                val = x.targetvalue
+    # print(str(thrower.name) + " throws at " + str(target.name))
+    return target
 
+def throw(thrower, defender):
+    incomingpower = getgauss(thrower.tpower, thrower.pconsist)
+    incomingaccuracy = getgauss(thrower.taccuracy, thrower.pconsist)
+    # check to see if throw on target
+    if random.randrange(1, 100) < incomingaccuracy:
+        # check to see if defender notices
+        if random.randrange(1, 100) < defender.awareness:
+            # pick best defense
+            if getgauss(incomingpower, defender.tactics) > getgauss(incomingaccuracy, defender.tactics):
+                defense = "dodge"
+                dval = getgauss(defender.dodge, defender.pconsist)
+                oval = incomingaccuracy
+            else:
+                defense = "catch"
+                dval = getgauss(defender.catch, defender.pconsist)
+                oval = incomingpower
+            # apply defense and check for hit
+            if oval > dval:
+                return "hit"
+            else:
+                return defense
+
+        else:
+            # unaware player gets no chance to defend
+            return "hit"
+
+    else:
+        # throw accuracy was too low
+        return "miss"
+
+def varyby(stat):
+    return random.uniform(1 - ((101 - stat) / 100), 1 + ((101 - stat) / 100))
+
+def getgauss(a, b):
+    return random.gauss(a, math.sqrt(100-b) * 1.5)
+
+def calcdev(x):
+    return math.sqrt(101-x)
 
 root.mainloop()
