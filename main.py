@@ -7,7 +7,6 @@ __author__ = 'Daniel Baker'
 # Add speed/turn order
 # Add team creation
 # Add time/calender system
-# fix bug when last out is visitor's throw being caught
 
 
 from tkinter import *
@@ -21,6 +20,7 @@ root = Tk()
 
 freeagents = []
 teams = []
+usednames = []
 curnum = 1
 
 
@@ -76,6 +76,8 @@ class Team:
         self.losses = 0
         self.active = True
 
+        self.winpercentage = 0.000
+
     def offrating(self):
         troster = []
         for x in self.roster:
@@ -97,15 +99,17 @@ class Team:
 
     def winpercent(self):
         if self.losses == 0:
-            return 1.000
+            x = 1.000
         else:
-            return round(self.wins/(self.wins + self.losses), 3)
+            x = round(self.wins/(self.wins + self.losses), 3)
+        self.winpercentage = x
 
 class Player:
     def __init__(self, name, number, genome):
+        holder = name.split()
         self.formalname = name
-        self.firstname = self.formalname.split()[0]
-        self.lastname = self.formalname.split()[1]
+        self.firstname = holder[0]
+        self.lastname = holder[1]
         self.fullname = name
         self.number = number
         self.nickname = None
@@ -183,19 +187,41 @@ def creategenome():
 
 def createplayer():
     filename = open("GermanFirst.txt")
-    germannames = [i.strip() for i in filename.readlines()]
+    germanfirstnames = [i.strip() for i in filename.readlines()]
+    filename.close()
+
+    filename = open("GermanLast.txt")
+    germanlastnames = [i.strip() for i in filename.readlines()]
     filename.close()
 
     filename = open("JapaneseFirst.txt")
-    japanesenames = [i.strip() for i in filename.readlines()]
+    japanesefirstnames = [i.strip() for i in filename.readlines()]
+    filename.close()
+
+    filename = open("JapaneseLast.txt")
+    japaneselastnames = [i.strip() for i in filename.readlines()]
     filename.close()
 
     global curnum
-    tempreli = round(random.randrange(1, 25))
-    if random.randrange(0, 100) > 50:
-        tempname = germannames[random.randint(0, len(germannames)-1)]
+
+    needname = True
+
+    if random.randrange(0, 100) > 40:
+        nationality = "German"
     else:
-        tempname = japanesenames[random.randint(0, len(japanesenames)-1)]
+        nationality = "Japanese"
+
+    while needname:
+        if nationality == "German":
+            tempname = germanfirstnames[random.randint(0, len(germanfirstnames)-1)].strip() + " " + germanlastnames[random.randint(0, len(germanlastnames)-1)].strip()
+        else:
+            tempname = japanesefirstnames[random.randint(0, len(japanesefirstnames)-1)] + " " + japaneselastnames[random.randint(0, len(japaneselastnames)-1)]
+        if tempname in usednames:
+            pass
+            print("duplicate name")
+        else:
+            usednames.append(tempname)
+            needname = False
 
     # Generate Genome
 
@@ -281,8 +307,8 @@ def playseason():
             if i != j:
                 throwround(teams[i], teams[j])
 
-    # sort teams by win percent
-    # teams.sort(key=operator.attrgetter("winpercent"), reverse=True)
+    updatestats()
+    leaguestandings()
 
 def leaguestandings():
     for child in mainbox.winfo_children():
@@ -292,7 +318,7 @@ def leaguestandings():
     tempframe.pack()
 
     for i in teams:
-        words = "%s  %s - %s (%s) [%s]" % (i.name, str(i.wins), str(i.losses), ('%.3f' % i.winpercent()), str(i.offrating() +i.defrating()))
+        words = "%s  %s - %s (%s) [%s]" % (i.name, str(i.wins), str(i.losses), ('%.3f' % i.winpercentage), str(i.offrating() +i.defrating()))
         Label(tempframe, text=words).pack()
 
 
@@ -303,24 +329,49 @@ def playerstats():
     tempframe = Frame(mainbox, height=300, width=600)
     tempframe.pack()
 
-    xyz = []
-
     k = random.choice(random.choice(teams).roster)
-
     for i in teams:
         for j in i.roster:
             if j.career_hits > k.career_hits:
                 k = j
-
     words = "League leader in hits - %s of Team %s (%s)" % (k.fullname, findteamname(k), k.career_hits)
     Label(tempframe, text=words).pack()
 
+    k = random.choice(random.choice(teams).roster)
+    for i in teams:
+        for j in i.roster:
+            if j.career_catch_succ > k.career_catch_succ:
+                k = j
+    words = "League leader in catches - %s of Team %s (%s)" % (k.fullname, findteamname(k), k.career_catch_succ)
+    Label(tempframe, text=words).pack()
+
+    k = random.choice(random.choice(teams).roster)
+    for i in teams:
+        for j in i.roster:
+            if j.career_dodge_succ > k.career_dodge_succ:
+                k = j
+    words = "League leader in dodges - %s of Team %s (%s)" % (k.fullname, findteamname(k), k.career_dodge_succ)
+    Label(tempframe, text=words).pack()
+
+    total_hits = 0
+    total_misses = 0
+    total_dodge = 0
+    total_catch = 0
+    for x in teams:
+        for y in x.roster:
+            total_hits += y.career_hits
+            total_misses += y.career_misses
+            total_dodge += y.career_dodge_succ
+            total_catch += y.career_catch_succ
+
+    Label(tempframe, text="\nLeague Totals\n").pack()
+    words = "%s hits   %s misses   %s dodges   %s catches" % (total_hits, total_misses, total_dodge, total_catch)
+    Label(tempframe, text=words).pack()
 
 def findteamname(z):
     for x in teams:
         if x.id == z.teamid:
             return x.name
-            break
 
 def pickteams(x):
     i = 0
@@ -367,6 +418,12 @@ toolbar.pack(side=TOP, fill=X)
 mainbox = Frame(root, relief=SUNKEN)
 mainbox.pack()
 
+def updatestats():
+    for i in teams:
+        i.winpercent()
+
+    teams.sort(key=lambda x: x.winpercentage, reverse=True)
+    # teams.sort(winpercentage, reverse=True)
 
 
 def throwround(team1, team2):
