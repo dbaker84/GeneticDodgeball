@@ -64,8 +64,7 @@ class Team:
     def __init__(self, name, roster):
         self.name = name
         self.roster = roster
-        self.id = -1
-        # self.id = random.randrange(10, 9999999)
+        self.id = random.randrange(10, 9999999)
 
         troster = []
         for x in self.roster:
@@ -75,7 +74,6 @@ class Team:
 
         self.wins = 0
         self.losses = 0
-        self.winpercent = 0.000
         self.active = True
 
     def offrating(self):
@@ -90,9 +88,25 @@ class Team:
             troster.append(x.defense)
         return round(statistics.mean(troster))
 
+    def playersleft(self):
+        ticker = 0
+        for x in self.roster:
+            if x.ingame:
+                ticker += 1
+        return ticker
+
+    def winpercent(self):
+        if self.losses == 0:
+            return 1.000
+        else:
+            return round(self.wins/(self.wins + self.losses), 3)
+
 class Player:
     def __init__(self, name, number, genome):
-        self.name = name
+        self.formalname = name
+        self.firstname = self.formalname.split()[0]
+        self.lastname = self.formalname.split()[1]
+        self.fullname = name
         self.number = number
         self.nickname = None
 
@@ -108,6 +122,7 @@ class Player:
 
         # all players start alive
         self.alive = True
+        self.ingame = True
         self.teamid = 0
 
         self.offhate = random.randrange(1, 100)
@@ -129,14 +144,19 @@ class Player:
         self.career_dodge_succ = 0
         self.career_catch_succ = 0
         self.career_deflect_succ = 0
-        self.career_opp_hits = 0
+        self.career_hits = 0
+        self.career_misses = 0
+        self.career_wasdodged = 0
+        self.career_wascaught = 0
+        self.career_blindsided = 0
+        self.career_assassinations = 0
         self.career_wins = 0
         self.career_losses = 0
 
     def targetvalue(self, thrower):
         x = ((self.offense * thrower.offhate) + (self.defense * thrower.defhate) +
              (self.intangibles * thrower.inthate) + (self.personality * thrower.pershate)) * varyby(thrower.tactics)
-        print(self.name, str(x))
+        # print(self.name, str(x))
         return x
 
 
@@ -218,7 +238,7 @@ def rostertest():
     for x in teams:
         print(x.name)
         for i in x.roster:
-            print(i.number, " ", i.name, " ", i.dodge)
+            print(i.number, " ", i.fullname, " ", i.dodge)
         print('\n')
 
 def randomroster():
@@ -237,7 +257,7 @@ def randomroster():
     ticker = 1
     for i in pick.roster:
         Label(tempframe, text=i.number).grid(row=ticker, column=0)
-        Label(tempframe, text=i.name).grid(row=ticker, column=1)
+        Label(tempframe, text=i.fullname).grid(row=ticker, column=1)
         Label(tempframe, text=i.dodge).grid(row=ticker, column=2)
         Label(tempframe, text=i.catch).grid(row=ticker, column=3)
         Label(tempframe, text=i.accuracy).grid(row=ticker, column=4)
@@ -247,38 +267,6 @@ def randomroster():
         Label(tempframe, text=i.tactics).grid(row=ticker, column=8)
         Label(tempframe, text=i.rating).grid(row=ticker, column=9)
         ticker += 1
-
-def playmatch(team1, team2):
-    for child in mainbox.winfo_children():
-        child.destroy()
-
-    tempframe = Frame(mainbox, height=300, width=600)
-    tempframe.pack()
-
-    #team1 = teams[random.randrange(0, len(teams))]
-    #team2 = team1
-    #while team2 == team1:
-    #    team2 = teams[random.randrange(0, len(teams))]
-
-    Label(tempframe, text=team1.name + " (" + str(team1.wins) + "-" + str(team1.losses) + ")  VS. " + team2.name
-                          + " ("+ str(team2.wins) + "-" + str(team2.losses) + ")").grid(row=0, column=0, columnspan=10)
-
-    Label(tempframe, text="").grid(row=1, column=0, columnspan=10)
-
-    if random.gauss(team1.rating, team1.consistency) > random.gauss(team2.rating, team2.consistency):
-        team1.wins += 1
-        team2.losses += 1
-        winner = team1.name
-    else:
-        team1.losses += 1
-        team2.wins += 1
-        winner = team2.name
-
-    team1.winpercent = team1.wins/(team1.losses+team1.wins)
-    team2.winpercent = team2.wins/(team2.losses+team2.wins)
-
-    Label(tempframe, text="The " + winner + " win the match!").grid(row=2, column=0, columnspan=10)
-    # Label(tempframe, text=pick.consistency).grid(row=0, column=9, columnspan=1)
 
 def randommatch():
     team1 = teams[random.randrange(0, len(teams))]
@@ -291,10 +279,10 @@ def playseason():
     for i in range(0, len(teams)):
         for j in range(0, len(teams)):
             if i != j:
-                playmatch(teams[i], teams[j])
+                throwround(teams[i], teams[j])
 
-    #sort teams by win percent
-    teams.sort(key=operator.attrgetter("winpercent"), reverse=True)
+    # sort teams by win percent
+    # teams.sort(key=operator.attrgetter("winpercent"), reverse=True)
 
 def leaguestandings():
     for child in mainbox.winfo_children():
@@ -304,8 +292,45 @@ def leaguestandings():
     tempframe.pack()
 
     for i in teams:
-        words = i.name + " [" + str(i.rating) + "] (" + str(i.wins) + "-" + str(i.losses) + ") " + ('%.3f' % i.winpercent)
+        words = "%s  %s - %s (%s) [%s]" % (i.name, str(i.wins), str(i.losses), ('%.3f' % i.winpercent()), str(i.offrating() +i.defrating()))
         Label(tempframe, text=words).pack()
+
+
+def playerstats():
+    for child in mainbox.winfo_children():
+        child.destroy()
+
+    tempframe = Frame(mainbox, height=300, width=600)
+    tempframe.pack()
+
+    xyz = []
+
+    k = random.choice(random.choice(teams).roster)
+
+    for i in teams:
+        for j in i.roster:
+            if j.career_hits > k.career_hits:
+                k = j
+
+    words = "League leader in hits - %s of Team %s (%s)" % (k.fullname, findteamname(k), k.career_hits)
+    Label(tempframe, text=words).pack()
+
+
+def findteamname(z):
+    for x in teams:
+        if x.id == z.teamid:
+            return x.name
+            break
+
+def pickteams(x):
+    i = 0
+    while i < x:
+        home = random.choice(teams)
+        visitor = home
+        while home == visitor:
+            visitor = random.choice(teams)
+        throwround(home, visitor)
+        i += 1
 
 # interface
 
@@ -316,11 +341,8 @@ toolbar = Frame(root, bg="blue")
 newPlayersButton = Button(toolbar, text="New League", command=newleaguebutton)
 newPlayersButton.pack(side=LEFT, padx=2, pady=2)
 
-rosterTestButton = Button(toolbar, text="Show Random Roster", command=randomroster)
-rosterTestButton.pack(side=LEFT, padx=2, pady=2)
-
-playMatchButton = Button(toolbar, text="Play Random Match", command=randommatch)
-playMatchButton.pack(side=LEFT, padx=2, pady=2)
+# rosterTestButton = Button(toolbar, text="Show Random Roster", command=randomroster)
+# rosterTestButton.pack(side=LEFT, padx=2, pady=2)
 
 playSeasonButton = Button(toolbar, text="Play Full Season", command=playseason)
 playSeasonButton.pack(side=LEFT, padx=2, pady=2)
@@ -328,93 +350,227 @@ playSeasonButton.pack(side=LEFT, padx=2, pady=2)
 leagueStandingsButton = Button(toolbar, text="League Standings", command=leaguestandings)
 leagueStandingsButton.pack(side=LEFT, padx=2, pady=2)
 
-testTargetButton = Button(toolbar, text="Test Targeting", command=lambda: throwround(teams[0], teams[1]))
+playerStatsButton = Button(toolbar, text="Player Stats", command=playerstats)
+playerStatsButton.pack(side=LEFT, padx=2, pady=2)
+
+testTargetButton = Button(toolbar, text="Random Game", command=lambda: pickteams(10))
 testTargetButton.pack(side=LEFT, padx=2, pady=2)
 
-testGenomeButton = Button(toolbar, text="Generate Genome", command=creategenome())
-testGenomeButton.pack(side=LEFT, padx=2, pady=2)
+# testTargetButton = Button(toolbar, text="Random Game", command=lambda: throwround(teams[0], teams[1]))
+# testTargetButton.pack(side=LEFT, padx=2, pady=2)
+
+# testGenomeButton = Button(toolbar, text="Generate Genome", command=creategenome())
+# testGenomeButton.pack(side=LEFT, padx=2, pady=2)
 
 toolbar.pack(side=TOP, fill=X)
 
 mainbox = Frame(root, relief=SUNKEN)
 mainbox.pack()
 
+
+
 def throwround(team1, team2):
     for child in mainbox.winfo_children():
         child.destroy()
+    #
+    # tempframe = Frame(mainbox)
+    # tempframe.pack()
 
-    tempframe = Frame(mainbox)
-    tempframe.pack()
+    # text2 = Text(mainbox, height=40, width=60)
+    # scroll = Scrollbar(mainbox, command=text2.yview)
+    # text2.configure(yscrollcommand=scroll.set)
+    # text2.pack(side=LEFT)
+    # scroll.pack(side=RIGHT, fill=Y)
 
-    text2 = Text(mainbox, height=400, width=200)
-    scroll = Scrollbar(root, command=text2.yview)
+    text2 = Text(mainbox, height=40, width=60)
+    scroll = Scrollbar(mainbox, command=text2.yview)
     text2.configure(yscrollcommand=scroll.set)
-    text2.insert(END, 'follow-up\n')
-    text2.pack()
+    text2.pack(side=LEFT)
     scroll.pack(side=RIGHT, fill=Y)
 
     home = team1
     visitor = team2
 
-    # print(home.name + " " + ' '.join([str(item.name) for item in home.roster]) + " " + str(home.offrating()) + " " + str(home.defrating()))
-    # print(visitor.name + " " + ' '.join([str(item.name) for item in visitor.roster]) + " " + str(visitor.offrating()) + " " + str(visitor.defrating()))
-
-    while len(home.roster) > 0 and len(visitor.roster) > 0:
-        for x in home.roster:
-            if len(home.roster) and len(visitor.roster) != 0:
-                target = selecttarget(x, visitor)
-                result = throw(x, target)
-                words = (x.name + " throws at " + target.name + " and there is a " + str(result) + "\n")
-                text2.insert(END, words)
-                if result == "hit":
-                    visitor.roster.pop(visitor.roster.index(target))
-                if result == "catch":
-                    home.roster.pop(home.roster.index(x))
-        text2.insert(END, "-- Switch Sides --\n")
-        for x in visitor.roster:
-            if len(home.roster) and len(visitor.roster) != 0:
-                target = selecttarget(x, home)
-                result = throw(x, target)
-                words = (x.name + " throws at " + target.name + " and there is a " + str(result) + "\n")
-                text2.insert(END, words)
-                if result == "hit":
-                    home.roster.pop(home.roster.index(target))
-                if result == "catch":
-                    visitor.roster.pop(visitor.roster.index(x))
-        text2.insert(END, "-- End of Round --\n")
-
-    if len(home.roster) == 0:
-        text2.insert(END, "-- Visitors Win --\n")
-    else:
-        text2.insert(END, "-- Home Wins --\n")
-
-    text2.insert(END, "-- Remaining Players --\n")
+    text2.insert(END, "%s [%soff %sdef] vs. %s [%soff %sdef]\n" % (home.name, home.offrating(), home.defrating(),
+                                                                   visitor.name, visitor.offrating(), visitor.defrating()))
     text2.insert(END, "- Home -\n")
     for y in home.roster:
-        text2.insert(END, y.name + "\n")
+        text2.insert(END, y.fullname + "\n")
     text2.insert(END, "- Visitors -\n")
     for y in visitor.roster:
-        text2.insert(END, y.name + "\n")
+        text2.insert(END, y.fullname + "\n")
+
+    text2.insert(END, "Start Game!\n")
+
+    # self.career_dodge_fail = 0
+    # self.career_catch_fail = 0
+    # self.career_deflect_fail = 0
+    # self.career_dodge_succ = 0
+    # self.career_catch_succ = 0
+    # self.career_deflect_succ = 0
+    # self.career_hits = 0
+    # self.career_blindsided = 0
+    # self.career_wins = 0
+    # self.career_losses = 0
+
+    # check to make sure no team is depleted to 0 players
+    while home.playersleft() > 0 and visitor.playersleft() > 0:
+        for x in home.roster:
+            if x.ingame:
+                target = selecttarget(x, visitor)
+                if not target:
+                    break
+                result = throw(x, target)
+                if result == "unawarehit":
+                    text2.insert(END, "%s sees that %s unaware and hits him!\n" % (x.fullname, target.fullname))
+                    target.career_blindsided += 1
+                    x.career_hits += 1
+                    target.ingame = False
+                if result == "catchfail":
+                    text2.insert(END, "%s tries to catch a throw by %s but can't hold on!\n" % (target.fullname, x.fullname))
+                    target.career_catch_fail += 1
+                    x.career_hits += 1
+                    target.ingame = False
+                if result == "dodgefail":
+                    text2.insert(END, "%s fails to dodge a throw by %s!\n" % (target.fullname, x.fullname))
+                    target.career_dodge_fail += 1
+                    x.career_hits += 1
+                    target.ingame = False
+                if result == "catch":
+                    text2.insert(END, "%s's throw is caught by %s!\n" % (x.fullname, target.fullname))
+                    target.career_catch_succ += 1
+                    x.career_wascaught += 1
+                    x.ingame = False
+                if result == "dodge":
+                    text2.insert(END, "%s dodges a throw by %s!\n" % (target.fullname, x.fullname))
+                    target.career_dodge_succ += 1
+                    x.career_wasdodged += 1
+                if result == "miss":
+                    text2.insert(END, "%s's throw at %s goes wide!\n" % (x.fullname, target.fullname))
+                    x.career_misses += 1
+
+        text2.insert(END, "-- Switch Sides --\n")
+        for x in visitor.roster:
+            if x.ingame:
+                target = selecttarget(x, home)
+                if not target:
+                    break
+                result = throw(x, target)
+                if result == "unawarehit":
+                    text2.insert(END, "%s sees that %s unaware and hits him!\n" % (x.fullname, target.fullname))
+                    target.career_blindsided += 1
+                    x.career_hits += 1
+                    target.ingame = False
+                if result == "catchfail":
+                    text2.insert(END, "%s tries to catch a throw by %s but can't hold on!\n" % (target.fullname, x.fullname))
+                    target.career_catch_fail += 1
+                    x.career_hits += 1
+                    target.ingame = False
+                if result == "dodgefail":
+                    text2.insert(END, "%s fails to dodge a throw by %s!\n" % (target.fullname, x.fullname))
+                    target.career_dodge_fail += 1
+                    x.career_hits += 1
+                    target.ingame = False
+                if result == "catch":
+                    text2.insert(END, "%s's throw is caught by %s!\n" % (x.fullname, target.fullname))
+                    target.career_catch_succ += 1
+                    x.career_wascaught += 1
+                    x.ingame = False
+                if result == "dodge":
+                    text2.insert(END, "%s dodges a throw by %s!\n" % (target.fullname, x.fullname))
+                    target.career_dodge_succ += 1
+                    x.career_wasdodged += 1
+                if result == "miss":
+                    text2.insert(END, "%s's throw at %s goes wide!\n" % (x.fullname, target.fullname))
+                    x.career_misses += 1
+
+        text2.insert(END, "-- End of Round --\n")
+
+    if home.playersleft() == 0:
+        text2.insert(END, "-- Visitors Win --\n")
+        visitor.wins += 1
+        home.losses += 1
+    else:
+        text2.insert(END, "-- Home Wins --\n")
+        home.wins += 1
+        visitor.losses += 1
+
+    text2.insert(END, "-- Remaining Players --\n")
+
+    text2.insert(END, "- Home -\n")
+    for y in home.roster:
+        if y.ingame:
+            text2.insert(END, y.fullname + "\n")
+        else:
+            y.ingame = True
+
+    text2.insert(END, "- Visitors -\n")
+    for y in visitor.roster:
+        if y.ingame:
+            text2.insert(END, y.fullname + "\n")
+        else:
+            y.ingame = True
+
+# def processthrow(x, y):
+#     if x.ingame:
+#         target = selecttarget(x, visitor)
+#         if not target:
+#             break
+#         result = throw(x, target)
+#         if result == "unawarehit":
+#             text2.insert(END, "%s sees that %s unaware and hits him!\n" % (x.name, target.name))
+#             target.career_blindsided += 1
+#             x.career_hits += 1
+#             target.ingame = False
+#         if result == "catchfail":
+#             text2.insert(END, "%s tries to catch a throw by %s but can't hold on!\n" % (target.name, x.name))
+#             target.career_catch_fail += 1
+#             x.career_hits += 1
+#             target.ingame = False
+#         if result == "dodgefail":
+#             text2.insert(END, "%s fails to dodge a throw by %s!\n" % (target.name, x.name))
+#             target.career_dodge_fail += 1
+#             x.career_hits += 1
+#             target.ingame = False
+#         if result == "catch":
+#             text2.insert(END, "%s's throw is caught by %s!\n" % (x.name, target.name))
+#             target.career_catch_succ += 1
+#             x.career_wascaught += 1
+#             x.ingame = False
+#         if result == "dodge":
+#             text2.insert(END, "%s dodges a throw by %s!\n" % (target.name, x.name))
+#             target.career_dodged_succ += 1
+#             x.career_wasdodged += 1
+#         if result == "miss":
+#             text2.insert(END, "%s's throw at %s goes wide!\n" % (x.name, target.name))
+#             x.career_misses += 1
 
 
 def selecttarget(thrower, opponents):
-    # check for panic throw
-    target = random.choice(opponents.roster)
-    if random.randrange(1, 100) < getgauss(thrower.nerves, thrower.pconsist):
-        for x in opponents.roster:
-            if target.targetvalue(thrower) < x.targetvalue(thrower):
-                target = x
-                val = x.targetvalue
-    # print(str(thrower.name) + " throws at " + str(target.name))
-    return target
+    if opponents.playersleft() > 0:
+        target = random.choice(opponents.roster)
+        # check for panic throw
+        if getgauss(50, 25) < getgauss(thrower.nerves, thrower.pconsist):
+            for x in opponents.roster:
+                if x.ingame:
+                    if target.targetvalue(thrower) < x.targetvalue(thrower):
+                        target = x
+                        val = x.targetvalue
+        # print(str(thrower.name) + " throws at " + str(target.name))
+        return target
+    else:
+        return False
+
 
 def throw(thrower, defender):
     incomingpower = getgauss(thrower.tpower, thrower.pconsist)
     incomingaccuracy = getgauss(thrower.taccuracy, thrower.pconsist)
+    throwdifficulty = getgauss(50, 25)
+    # print("%s taccuracy %s incomingaccuracy %s throwdiff %s" % (thrower.name, thrower.taccuracy, incomingaccuracy, throwdifficulty))
     # check to see if throw on target
-    if random.randrange(1, 100) < incomingaccuracy:
+    if throwdifficulty < incomingaccuracy:
         # check to see if defender notices
-        if random.randrange(1, 100) < defender.awareness:
+        if getgauss(50, 25) < defender.awareness:
             # pick best defense
             if getgauss(incomingpower, defender.tactics) > getgauss(incomingaccuracy, defender.tactics):
                 defense = "dodge"
@@ -426,13 +582,13 @@ def throw(thrower, defender):
                 oval = incomingpower
             # apply defense and check for hit
             if oval > dval:
-                return "hit"
+                return defense + "fail"
             else:
                 return defense
 
         else:
             # unaware player gets no chance to defend
-            return "hit"
+            return "unawarehit"
 
     else:
         # throw accuracy was too low
@@ -442,7 +598,7 @@ def varyby(stat):
     return random.uniform(1 - ((101 - stat) / 100), 1 + ((101 - stat) / 100))
 
 def getgauss(a, b):
-    return random.gauss(a, math.sqrt(100-b) * 1.5)
+    return sclamp(random.gauss(a, math.sqrt(100-b) * 1.5))
 
 def calcdev(x):
     return math.sqrt(101-x)
