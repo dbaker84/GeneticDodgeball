@@ -1,0 +1,85 @@
+agricultural chemicals
+aluminum
+diversified chemicals
+copper
+gold
+oil
+industrial metals
+mineral mining
+silver
+specialty chemicals
+steel
+iron
+synthetics
+advertising
+air delivery
+freight servicess
+apparel
+automotive
+broadcasting
+broadcasting
+television
+building materials
+business services
+computer
+consumer services
+department store
+drug store
+education services
+electronics store
+entertainment
+food wholesale
+gaming activities
+grocery store
+home furnishing store
+home improvement store
+industrial equipment
+jewelry store
+lodging
+major airline
+management servicess
+marketing servicess
+medical equipment
+movie production
+music store
+personal servicess
+publishing
+newspapers
+magazine
+railroad
+rental services
+research services
+resort
+casino
+restaurant
+security services
+shipping
+sporting goods store
+staffing services
+outsourcing services
+technical services
+toy
+trucking
+technology
+application software
+business software
+communication equipment
+computer based systems
+computer peripheral
+data storage device
+communication services
+electronics
+healthcare information services
+information technology services
+internet services provider
+software
+networking device
+personal computer
+printed circuit board
+processing systems
+scientific instrument
+security software & services
+semiconductor
+technical & system software
+telecom
+wireless communications
