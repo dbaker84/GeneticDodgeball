@@ -1,0 +1,35 @@
+Austin
+Perth
+Tokyo
+Melbourne
+New York City
+Brisbane
+Sydney
+Dallas
+Houston
+San Antonio
+Los Angeles
+Denver
+Yokohama
+Phoenix
+Seattle
+Kawasaki
+Washington
+Berlin
+Munich
+Adelaide
+Osaka
+Nagoya
+Fukuoka
+Sapporo
+Hamburg
+Saitama
+Kobe
+Chiba
+Cologne
+Dresden
+Frankfurt
+Leipzig
+Stuttgart
+Dusseldorf
+Nuremburg
