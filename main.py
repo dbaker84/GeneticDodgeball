@@ -334,22 +334,17 @@ def playerstats():
     for child in mainbox.winfo_children():
         child.destroy()
 
-    print(theowner.team.fullname)
-
-    tempframe = Frame(mainbox, height=300, width=600)
-    tempframe.pack()
-
     player_with_most_hits = best_player('career_hits')
     words = "League leader in hits - %s of the %s (%s)" % (player_with_most_hits.fullname, player_with_most_hits.team.fullname, player_with_most_hits.career_hits)
-    Label(tempframe, text=words).pack()
+    Label(mainbox, text=words).pack()
 
     player_with_most_catches = best_player('career_catch_succ')
     words = "League leader in catches - %s of the %s (%s)" % (player_with_most_catches.fullname, player_with_most_catches.team.fullname, player_with_most_catches.career_catch_succ)
-    Label(tempframe, text=words).pack()
+    Label(mainbox, text=words).pack()
 
     player_with_most_dodges = best_player('career_dodge_succ')
     words = "League leader in dodges - %s of the %s (%s)" % (player_with_most_dodges.fullname, player_with_most_dodges.team.fullname, player_with_most_dodges.career_dodge_succ)
-    Label(tempframe, text=words).pack()
+    Label(mainbox, text=words).pack()
 
     total_hits = 0
     total_misses = 0
@@ -364,20 +359,44 @@ def playerstats():
             total_catch += y.career_catch_succ
             total_throws += y.career_throws
 
-    Label(tempframe, text="\nLeague Totals\n").pack()
+    Label(mainbox, text="\nLeague Totals\n").pack()
     words = "%s hits   %s misses   %s dodges   %s catches" % (total_hits, total_misses, total_dodge, total_catch)
-    Label(tempframe, text=words).pack()
+    Label(mainbox, text=words).pack()
 
     words = "%s total throws" % total_throws
-    Label(tempframe, text=words).pack()
+    Label(mainbox, text=words).pack()
 
     words = "%s average throw accuracy" % str(round(statistics.median(accuracies), 1))
-    Label(tempframe, text=words).pack()
+    Label(mainbox, text=words).pack()
 
     words = "%s average throw difficulty" % str(round(statistics.mean(difficulties), 1))
-    Label(tempframe, text=words).pack()
+    Label(mainbox, text=words).pack()
+
+def show_owner_team_roster(team):
+    for child in mainbox.winfo_children():
+        child.destroy()
+        
+    tempframe = Frame(mainbox)
+
+    nameheader = Label(tempframe, text="Name").grid(row=0, column=0)
+    offheader = Label(tempframe, text="Offense").grid(row=0, column=1)
+    defheader = Label(tempframe, text="Defense").grid(row=0, column=2)
+    intheader = Label(tempframe, text="Intangibles").grid(row=0, column=3)
+    perheader = Label(tempframe, text="Personality").grid(row=0, column=4)
+    totalheader = Label(tempframe, text="TOTAL").grid(row=0, column=5)
+
+    row_iter = 1
+    for player in team.roster:
+        Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
+        Label(tempframe, text=player.offense).grid(row=row_iter, column=1)
+        Label(tempframe, text=player.defense).grid(row=row_iter, column=2)
+        Label(tempframe, text=player.intangibles).grid(row=row_iter, column=3)
+        Label(tempframe, text=player.personality).grid(row=row_iter, column=4)
+        Label(tempframe, text=player.rating).grid(row=row_iter, column=5)
+        row_iter += 1
 
 
+    tempframe.pack()
 
 def pickteams(x):
     i = 0
@@ -417,56 +436,64 @@ def begingame(team):
     for child in mainbox.winfo_children():
         child.destroy()
 
-    drawtoolbar()
-
-
-
     # name = get_player_name.get()
     theowner.team = team
     Label(mainbox, text="You are now the owner of the %s" % theowner.team.fullname).grid(row=0, column=0)
     print("%s" % theowner.team.fullname)
 
-# interface
+    drawtestbar()
+    drawteambar()  ## can only draw team bar after team is set to owner
 
-def drawtoolbar():
-    toolbar = Frame(root, bg="blue")
 
-    newplayersbutton = Button(toolbar, text="New League", command=newleaguebutton)
+
+def drawtestbar():
+    testbar = Frame(controlbar, bg="blue")
+
+    newplayersbutton = Button(testbar, text="New League", command=newleaguebutton)
     newplayersbutton.pack(side=LEFT, padx=2, pady=2)
 
-    # rosterTestButton = Button(toolbar, text="Show Random Roster", command=randomroster)
+    # rosterTestButton = Button(testbar, text="Show Random Roster", command=randomroster)
     # rosterTestButton.pack(side=LEFT, padx=2, pady=2)
 
-    playseasonbutton = Button(toolbar, text="Play Full Season", command=playseason)
+    playseasonbutton = Button(testbar, text="Play Full Season", command=playseason)
     playseasonbutton.pack(side=LEFT, padx=2, pady=2)
 
-    leaguestandingsbutton = Button(toolbar, text="League Standings", command=leaguestandings)
+    leaguestandingsbutton = Button(testbar, text="League Standings", command=leaguestandings)
     leaguestandingsbutton.pack(side=LEFT, padx=2, pady=2)
 
-    playerstatsbutton = Button(toolbar, text="Player Stats", command=playerstats)
+    playerstatsbutton = Button(testbar, text="Player Stats", command=playerstats)
     playerstatsbutton.pack(side=LEFT, padx=2, pady=2)
 
-    testtargetbutton = Button(toolbar, text="Random Game", command=lambda: pickteams(10))
+    testtargetbutton = Button(testbar, text="Random Game", command=lambda: pickteams(10))
     testtargetbutton.pack(side=LEFT, padx=2, pady=2)
 
-    # testTargetButton = Button(toolbar, text="Random Game", command=lambda: throwround(teams[0], teams[1]))
+    # testTargetButton = Button(testbar, text="Random Game", command=lambda: throwround(teams[0], teams[1]))
     # testTargetButton.pack(side=LEFT, padx=2, pady=2)
 
-    # testGenomeButton = Button(toolbar, text="Generate Genome", command=creategenome())
+    # testGenomeButton = Button(testbar, text="Generate Genome", command=creategenome())
     # testGenomeButton.pack(side=LEFT, padx=2, pady=2)
 
-    toolbar.pack(side=TOP, fill=X)
+    testbar.pack(side=TOP, fill=X)
+
+    
+def drawteambar():
+    teambar = Frame(controlbar, bg="navy")
+
+    showteamroster = Button(teambar, text="%s Roster" % theowner.team.fullname, command=lambda: show_owner_team_roster(theowner.team))
+    showteamroster.grid(row=0, column=0, padx=2, pady=2)
+
+    testtargetbutton = Button(teambar, text="Team 2", command=lambda: pickteams(10))
+    testtargetbutton.grid(row=0, column=1, padx=2, pady=2)
+
+    teambar.pack(side=TOP, fill=X)
+
+### DRAW THE INTERFACE FRAMES ###
+
+controlbar = Frame(root)
+controlbar.pack(side=TOP)
 
 mainbox = Frame(root)
 mainbox.pack(side=BOTTOM)
-
-Label(mainbox, text="Owner Name").grid(row=0, column=0)
-get_player_name = Entry(mainbox)
-get_player_name.grid(row=0, column=1)
-
-Label(mainbox, text="Team City").grid(row=1, column=0)
-get_team_city = Entry(mainbox)
-get_team_city.grid(row=1, column=1)
 
 newleaguebutton()
 
