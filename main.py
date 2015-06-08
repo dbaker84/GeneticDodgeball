@@ -14,8 +14,11 @@ import random
 import statistics
 import operator
 import math
+from tkinter import font
+
 
 root = Tk()
+root.geometry("700x500")
 root.wm_title("Genetic Dodgeball")
 
 
@@ -23,6 +26,7 @@ freeagents = []
 teams = []
 usednames = []
 curnum = 1
+
 
 
 # global variables for decoding genomes
@@ -58,6 +62,23 @@ stats = [["dodge", "A", "C", "D"],
         ["winner", "Z", "A", "Y"]]
 
 geneseq = "ABCDEFGHJKLMNOPQRSTUWXYZ"
+
+season_stat_list = [
+        "season_throws",
+        "season_dodge_fail",
+        "season_catch_fail",
+        "season_deflect_fail",
+        "season_dodge_succ",
+        "season_catch_succ",
+        "season_deflect_succ",
+        "season_hits",
+        "season_misses",
+        "season_wasdodged",
+        "season_wascaught",
+        "season_blindsided",
+        "season_assassinations",
+        "season_wins",
+        "season_losses"]
 
 
 def all_the_players():
@@ -250,19 +271,22 @@ def newplayers(x):
     for i in range(1, x):
         freeagents.append(createplayer())
 
-    ticker = 0
+    # ticker = 0
+    # for player in freeagents:
+    #     if player.taccuracy < 45 or player.pconsist or player.awareness < 33:
+    #         ticker += 1
+    #         freeagents.pop(freeagents.index(player))
+    # print(ticker)
+
+    offs = []
     for player in freeagents:
-        if player.taccuracy < 45 or player.pconsist or player.awareness < 33:
-            ticker += 1
-            freeagents.pop(freeagents.index(player))
+        offs.append(player.offense)
+    print(round(statistics.mean(offs), 1))
 
-    print(ticker)
-
-    taccs = []
+    defs = []
     for player in freeagents:
-        taccs.append(player.taccuracy)
-
-    print(statistics.mean(taccs))
+        defs.append(player.defense)
+    print(round(statistics.mean(defs), 1))
 
 
 def newteams(x):
@@ -284,9 +308,19 @@ def newteams(x):
             pick_player = random.randint(0, len(freeagents)-1)
             addplayer(freeagents[pick_player], team)
 
-def remplayer(player, team):
+def remplayer(player):
+    freeagents.append(player.team.roster.pop(player.team.roster.index(player)))
     player.team = False
-    freeagents.append(team.roster.pop(team.roster.index(player)))
+
+
+def manage_drop_player(player):
+    remplayer(player)
+    manage_owner_team_roster(theowner.team)
+
+
+def manage_add_player(player):
+    addplayer(player, theowner.team)
+    manage_free_agents()
 
 
 def addplayer(player, team):
@@ -297,23 +331,19 @@ def newleaguebutton():
     for child in mainbox.winfo_children():
         child.destroy()
 
+    for child in controlbar.winfo_children():
+        child.destroy()
+
     newplayers(500)
     newteams(8)
     pickyourteam()
 
 
-def randommatch():
-    team1 = teams[random.randrange(0, len(teams))]
-    team2 = team1
-    while team2 == team1:
-        team2 = teams[random.randrange(0, len(teams))]
-    playmatch(team1, team2)
-
 def playseason():
     for i in range(0, len(teams)):
         for j in range(0, len(teams)):
             if i != j:
-                throwround(teams[i], teams[j])
+                play_game(teams[i], teams[j])
 
     updatestats()
     leaguestandings()
@@ -360,32 +390,32 @@ def playerstats():
             total_throws += y.career_throws
 
     Label(mainbox, text="\nLeague Totals\n").pack()
-    words = "%s hits   %s misses   %s dodges   %s catches" % (total_hits, total_misses, total_dodge, total_catch)
+    words = "%s hits   %s dodges   %s catches" % (total_hits, total_dodge, total_catch)
     Label(mainbox, text=words).pack()
 
     words = "%s total throws" % total_throws
     Label(mainbox, text=words).pack()
 
-    words = "%s average throw accuracy" % str(round(statistics.median(accuracies), 1))
-    Label(mainbox, text=words).pack()
+    # words = "%s average throw accuracy" % str(round(statistics.median(accuracies), 1))
+    # Label(mainbox, text=words).pack()
 
-    words = "%s average throw difficulty" % str(round(statistics.mean(difficulties), 1))
-    Label(mainbox, text=words).pack()
 
 def show_owner_team_roster(team):
     for child in mainbox.winfo_children():
         child.destroy()
-        
+
     tempframe = Frame(mainbox)
 
-    nameheader = Label(tempframe, text="Name").grid(row=0, column=0)
-    offheader = Label(tempframe, text="Offense").grid(row=0, column=1)
-    defheader = Label(tempframe, text="Defense").grid(row=0, column=2)
-    intheader = Label(tempframe, text="Intangibles").grid(row=0, column=3)
-    perheader = Label(tempframe, text="Personality").grid(row=0, column=4)
-    totalheader = Label(tempframe, text="TOTAL").grid(row=0, column=5)
+    Label(tempframe, text="%s Roster" % theowner.team.fullname).grid(row=0, columnspan=6)
 
-    row_iter = 1
+    Label(tempframe, text="Name").grid(row=1, column=0)
+    Label(tempframe, text="Offense").grid(row=1, column=1)
+    Label(tempframe, text="Defense").grid(row=1, column=2)
+    Label(tempframe, text="Intangibles").grid(row=1, column=3)
+    Label(tempframe, text="Personality").grid(row=1, column=4)
+    Label(tempframe, text="TOTAL").grid(row=1, column=5)
+
+    row_iter = 2
     for player in team.roster:
         Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
         Label(tempframe, text=player.offense).grid(row=row_iter, column=1)
@@ -395,8 +425,48 @@ def show_owner_team_roster(team):
         Label(tempframe, text=player.rating).grid(row=row_iter, column=5)
         row_iter += 1
 
-
     tempframe.pack()
+
+
+def manage_owner_team_roster(team):
+    for child in mainbox.winfo_children():
+        child.destroy()
+
+    tempframe = Frame(mainbox)
+
+    Label(tempframe, text="Name").grid(row=0, column=0)
+    Label(tempframe, text="TOTAL").grid(row=0, column=1)
+
+    row_iter = 1
+    for player in team.roster:
+        Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
+        Label(tempframe, text=player.rating).grid(row=row_iter, column=1)
+        Button(tempframe, text="Drop %s" % player.fullname, width=25, command=lambda x=player: manage_drop_player(x)).grid(row=row_iter, column=2)
+        row_iter += 1
+
+    tempframe.pack(side=LEFT)
+
+
+def manage_free_agents():
+    for child in mainbox.winfo_children():
+        child.destroy()
+
+    tempframe = Canvas(mainbox, height=300)
+    scroll = Scrollbar(mainbox, command=tempframe.yview)
+    tempframe.pack(side=LEFT)
+    tempframe.config(width=300, height=300, yscrollcommand=scroll.set)
+    scroll.pack(side=RIGHT, fill=Y)
+
+    Label(tempframe, text="Name").grid(row=0, column=0)
+    Label(tempframe, text="TOTAL").grid(row=0, column=1)
+
+    row_iter = 1
+    for player in freeagents:
+        Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
+        Label(tempframe, text=player.rating).grid(row=row_iter, column=1)
+        Button(tempframe, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=2)
+        row_iter += 1
+
 
 def pickteams(x):
     i = 0
@@ -405,7 +475,7 @@ def pickteams(x):
         visitor = home
         while home == visitor:
             visitor = random.choice(teams)
-        throwround(home, visitor)
+        play_game(home, visitor)
         i += 1
 
 
@@ -428,9 +498,6 @@ def pickyourteam():
         Button(mainbox, text=team.fullname, width=20, command=lambda x=team: begingame(x)).grid(row=row_iter, columnspan=2)
         row_iter += 1
 
-
-def testprint(words):
-    print(words)
 
 def begingame(team):
     for child in mainbox.winfo_children():
@@ -475,25 +542,37 @@ def drawtestbar():
 
     testbar.pack(side=TOP, fill=X)
 
-    
+
 def drawteambar():
     teambar = Frame(controlbar, bg="navy")
 
-    showteamroster = Button(teambar, text="%s Roster" % theowner.team.fullname, command=lambda: show_owner_team_roster(theowner.team))
+    showteamroster = Button(teambar, text="View Roster", command=lambda: show_owner_team_roster(theowner.team))
     showteamroster.grid(row=0, column=0, padx=2, pady=2)
 
-    testtargetbutton = Button(teambar, text="Team 2", command=lambda: pickteams(10))
-    testtargetbutton.grid(row=0, column=1, padx=2, pady=2)
+    manageteamroster = Button(teambar, text="Manage Roster", command=lambda: manage_owner_team_roster(theowner.team))
+    manageteamroster.grid(row=0, column=1, padx=2, pady=2)
+
+    freeagentmarket = Button(teambar, text="Free Agents", command=lambda: manage_free_agents())
+    freeagentmarket.grid(row=0, column=2, padx=2, pady=2)
 
     teambar.pack(side=TOP, fill=X)
 
 ### DRAW THE INTERFACE FRAMES ###
 
+### GAME TITLE
+
+titlefont = font.Font(family='Century Gothic', size=24, weight='bold')
+
+Label(root, text="GENETIC DODGEBALL", font=titlefont).pack(side=TOP)
+
 controlbar = Frame(root)
 controlbar.pack(side=TOP)
 
+### spacer frame ###
+Frame(root, height="20").pack(side=TOP)
+
 mainbox = Frame(root)
-mainbox.pack(side=BOTTOM)
+mainbox.pack(side=TOP)
 
 newleaguebutton()
 
@@ -512,10 +591,10 @@ def updatestats():
     # teams.sort(winpercentage, reverse=True)
 
 
-def throwround(team1, team2):
+def play_game(team1, team2):
     for child in mainbox.winfo_children():
         child.destroy()
-    #
+
     # tempframe = Frame(mainbox)
     # tempframe.pack()
 
@@ -525,7 +604,7 @@ def throwround(team1, team2):
     # text2.pack(side=LEFT)
     # scroll.pack(side=RIGHT, fill=Y)
 
-    text2 = Text(mainbox, height=40, width=60)
+    text2 = Text(mainbox)
     scroll = Scrollbar(mainbox, command=text2.yview)
     text2.configure(yscrollcommand=scroll.set)
     text2.pack(side=LEFT)
@@ -533,6 +612,8 @@ def throwround(team1, team2):
 
     home = team1
     visitor = team2
+
+    teams_in_match = [team1, team2]
 
     text2.insert(END, "%s [%soff %sdef] vs. %s [%soff %sdef]\n" % (home.fullname, home.offrating(), home.defrating(),
                                                                    visitor.fullname, visitor.offrating(), visitor.defrating()))
@@ -578,10 +659,6 @@ def throwround(team1, team2):
                     text2.insert(END, "%s dodges a throw by %s!\n" % (target.fullname, x.fullname))
                     target.career_dodge_succ += 1
                     x.career_wasdodged += 1
-                if result == "miss":
-                    text2.insert(END, "%s's throw at %s goes wide!\n" % (x.fullname, target.fullname))
-                    x.career_misses += 1
-
         text2.insert(END, "-- Switch Sides --\n")
         for x in visitor.roster:
             if x.ingame:
@@ -614,10 +691,6 @@ def throwround(team1, team2):
                     text2.insert(END, "%s dodges a throw by %s!\n" % (target.fullname, x.fullname))
                     target.career_dodge_succ += 1
                     x.career_wasdodged += 1
-                if result == "miss":
-                    text2.insert(END, "%s's throw at %s goes wide!\n" % (x.fullname, target.fullname))
-                    x.career_misses += 1
-
         text2.insert(END, "-- End of Round --\n")
 
     if home.playersleft() == 0:
@@ -645,44 +718,10 @@ def throwround(team1, team2):
         else:
             y.ingame = True
 
-# def processthrow(x, y):
-#     if x.ingame:
-#         target = selecttarget(x, visitor)
-#         if not target:
-#             break
-#         result = throw(x, target)
-#         if result == "unawarehit":
-#             text2.insert(END, "%s sees that %s unaware and hits him!\n" % (x.name, target.name))
-#             target.career_blindsided += 1
-#             x.career_hits += 1
-#             target.ingame = False
-#         if result == "catchfail":
-#             text2.insert(END, "%s tries to catch a throw by %s but can't hold on!\n" % (target.name, x.name))
-#             target.career_catch_fail += 1
-#             x.career_hits += 1
-#             target.ingame = False
-#         if result == "dodgefail":
-#             text2.insert(END, "%s fails to dodge a throw by %s!\n" % (target.name, x.name))
-#             target.career_dodge_fail += 1
-#             x.career_hits += 1
-#             target.ingame = False
-#         if result == "catch":
-#             text2.insert(END, "%s's throw is caught by %s!\n" % (x.name, target.name))
-#             target.career_catch_succ += 1
-#             x.career_wascaught += 1
-#             x.ingame = False
-#         if result == "dodge":
-#             text2.insert(END, "%s dodges a throw by %s!\n" % (target.name, x.name))
-#             target.career_dodged_succ += 1
-#             x.career_wasdodged += 1
-#         if result == "miss":
-#             text2.insert(END, "%s's throw at %s goes wide!\n" % (x.name, target.name))
-#             x.career_misses += 1
-
 
 def selecttarget(thrower, opponents):
     if opponents.playersleft() > 0:
-        target = random.choice(opponents.roster)
+        target = next((x for x in opponents.roster if x.ingame), None)
         # check for panic throw
         if getgauss(50, 25) < getgauss(thrower.nerves, thrower.pconsist):
             for x in opponents.roster:
@@ -701,35 +740,28 @@ accuracies = []
 def throw(thrower, defender):
     incomingpower = getgauss(thrower.tpower, thrower.pconsist)
     incomingaccuracy = getgauss(thrower.taccuracy, thrower.pconsist)
-    throwdifficulty = getgauss(45, 25)
-    difficulties.append(throwdifficulty)
     accuracies.append(incomingaccuracy)
-    # check to see if throw on target
-    if throwdifficulty < incomingaccuracy:
-        # check to see if defender notices
-        if getgauss(45, 25) < defender.awareness:
-            # pick best defense
-            if getgauss(incomingpower, defender.tactics) > getgauss(incomingaccuracy, defender.tactics):
-                defense = "dodge"
-                dval = getgauss(defender.dodge, defender.pconsist)
-                oval = incomingaccuracy
-            else:
-                defense = "catch"
-                dval = getgauss(defender.catch, defender.pconsist)
-                oval = incomingpower
-            # apply defense and check for hit
-            if oval > dval:
-                return defense + "fail"
-            else:
-                return defense
-
+    # check to see if defender notices
+    if getgauss(45, 25) < defender.awareness:
+        # pick best defense
+        if getgauss(incomingpower, defender.tactics) > getgauss(incomingaccuracy, defender.tactics):
+            defense = "dodge"
+            dval = getgauss(defender.dodge, defender.pconsist)
+            oval = incomingaccuracy
         else:
-            # unaware player gets no chance to defend
-            return "unawarehit"
+            defense = "catch"
+            dval = getgauss(defender.catch, defender.pconsist)
+            oval = incomingpower
+        # apply defense and check for hit
+        if oval > dval:
+            return defense + "fail"
+        else:
+            return defense
 
     else:
-        # throw accuracy was too low
-        return "miss"
+        # unaware player gets no chance to defend
+        return "unawarehit"
+
 
 def varyby(stat):
     return random.uniform(1 - ((101 - stat) / 100), 1 + ((101 - stat) / 100))
