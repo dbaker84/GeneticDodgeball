@@ -14,16 +14,19 @@ import random
 import statistics
 import operator
 import math
+import csv
 from tkinter import font
 
 
 root = Tk()
-root.geometry("700x500")
+root.geometry("1600x900")
 root.wm_title("Genetic Dodgeball")
+root.resizable(width=FALSE, height=FALSE)
 
 
 freeagents = []
 teams = []
+cities = []
 usednames = []
 curnum = 1
 
@@ -33,6 +36,7 @@ curnum = 1
 posfactor = 4
 divfactor = 4.5
 negfactor = 20
+salaryfactor = 4
 
 
 
@@ -96,8 +100,9 @@ sclamp = lambda n: round(max(min(100, n), 1))
 class Team:
     def __init__(self, city, name, roster):
         self.name = name
+        self.city = city
         self.roster = roster
-        self.fullname = city + " " + name
+        self.fullname = city.name + " " + name
         self.id = random.randrange(10, 9999999)
 
         self.wins = 0
@@ -131,6 +136,23 @@ class Team:
         else:
             x = round(self.wins/(self.wins + self.losses), 3)
         self.winpercentage = x
+
+
+class Stadium:
+    def __init__(self, name, seats, ticket_price, box_price):
+        self.name = name
+        self.seats = seats
+        self.ticket_price = ticket_price
+        self.box_price = box_price
+
+
+class City:
+    def __init__(self, name, country, population, rabidity):
+        self.name = name
+        self.country = country
+        self.population = population
+        self.rabidity = rabidity
+
 
 class Player:
     def __init__(self, name, number, genome):
@@ -167,6 +189,9 @@ class Player:
         self.intangibles = self.leadership + self.clutch + self.winner + self.patience + self.workethic
         self.personality = self.flair + self.charisma + self.ego + self.ethics + self.coachability
         self.rating = self.defense + self.offense + self.intangibles + self.personality
+
+        # calc initial salary
+        self.salary = round(self.rating * salaryfactor * (1 + (self.ego / 400)), 2)
 
         # print("the rating for ", self.name, " is ", str(self.rating))
 
@@ -212,11 +237,26 @@ class Owner:
 global theowner
 theowner = Owner(False)
 
+
 def creategenome():
     mygenome = Genome()
     # for x in "ABCDEFGHJKLMNOPQRSTUWXYZ":
     #    print(getattr(mygenome, x).value, getattr(mygenome, x).dominance, getattr(mygenome, x).error)
     return mygenome
+
+
+def createcities():
+    with open('Cities.csv') as f:
+        cr = csv.reader(f)
+        # skip=next(cr)  #skip the first row of keys "a,b,c,d"
+        citylist = [l for l in cr]
+    for city in citylist:
+        cities.append(City(city[0], city[1], city[2], random.gauss(50, 10)))
+
+    # for city in cities:
+    #     print("%s %s %s %s" % (city.name, city.country, city.population, round(city.rabidity, 1)))
+
+createcities()
 
 def createplayer():
     filename = open("GermanFirst.txt")
@@ -295,13 +335,13 @@ def newteams(x):
     namelist = [i.strip() for i in filename.readlines()]
     filename.close()
 
-    filename = open("Cities.txt")
-    citylist = [i.strip() for i in filename.readlines()]
-    filename.close()
+    # filename = open("Cities.txt")
+    # citylist = [i.strip() for i in filename.readlines()]
+    # filename.close()
 
     # make x number of teams
     for i in range(0, x):
-        teams.append(Team(citylist.pop(random.randint(0, len(citylist)-1)), namelist.pop(random.randint(0, len(namelist)-1)), []))
+        teams.append(Team(cities.pop(random.randint(0, len(cities)-1)), namelist.pop(random.randint(0, len(namelist)-1)), []))
 
     for team in teams:
         for i in range(0, 5):
@@ -435,13 +475,15 @@ def manage_owner_team_roster(team):
     tempframe = Frame(mainbox)
 
     Label(tempframe, text="Name").grid(row=0, column=0)
-    Label(tempframe, text="TOTAL").grid(row=0, column=1)
+    Label(tempframe, text="Rating").grid(row=0, column=1)
+    Label(tempframe, text="Salary").grid(row=0, column=2)
 
     row_iter = 1
     for player in team.roster:
         Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
         Label(tempframe, text=player.rating).grid(row=row_iter, column=1)
-        Button(tempframe, text="Drop %s" % player.fullname, width=25, command=lambda x=player: manage_drop_player(x)).grid(row=row_iter, column=2)
+        Label(tempframe, text="$%.2f" % player.salary).grid(row=row_iter, column=2)
+        Button(tempframe, text="Drop %s" % player.fullname, width=25, command=lambda x=player: manage_drop_player(x)).grid(row=row_iter, column=3)
         row_iter += 1
 
     tempframe.pack(side=LEFT)
@@ -451,20 +493,33 @@ def manage_free_agents():
     for child in mainbox.winfo_children():
         child.destroy()
 
-    tempframe = Canvas(mainbox, height=300)
-    scroll = Scrollbar(mainbox, command=tempframe.yview)
-    tempframe.pack(side=LEFT)
-    tempframe.config(width=300, height=300, yscrollcommand=scroll.set)
+    canvas = Canvas(mainbox, scrollregion=(0, 0, 300, 3000))
+    scroll = Scrollbar(mainbox, command=canvas.yview)
+    canvas.pack(side=LEFT)
+    canvas.config(width=300, height=3000, yscrollcommand=scroll.set)
     scroll.pack(side=RIGHT, fill=Y)
 
-    Label(tempframe, text="Name").grid(row=0, column=0)
-    Label(tempframe, text="TOTAL").grid(row=0, column=1)
+    # frame=Frame(root,width=300,height=300)
+    # frame.pack()
+    # canvas=Canvas(frame,bg='#FFFFFF',width=300,height=300,scrollregion=(0,0,500,500))
+    # hbar=Scrollbar(frame,orient=HORIZONTAL)
+    # hbar.pack(side=BOTTOM,fill=X)
+    # hbar.config(command=canvas.xview)
+    # vbar=Scrollbar(frame,orient=VERTICAL)
+    # vbar.pack(side=RIGHT,fill=Y)
+    # vbar.config(command=canvas.yview)
+    # canvas.config(width=300,height=300)
+    # canvas.config(xscrollcommand=hbar.set, yscrollcommand=vbar.set)
+    # canvas.pack(side=LEFT,expand=True,fill=BOTH)
+
+    Label(canvas, text="Name").grid(row=0, column=0)
+    Label(canvas, text="TOTAL").grid(row=0, column=1)
 
     row_iter = 1
     for player in freeagents:
-        Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
-        Label(tempframe, text=player.rating).grid(row=row_iter, column=1)
-        Button(tempframe, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=2)
+        Label(canvas, text=player.fullname).grid(row=row_iter, column=0)
+        Label(canvas, text=player.rating).grid(row=row_iter, column=1)
+        Button(canvas, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=2)
         row_iter += 1
 
 
@@ -764,7 +819,7 @@ def throw(thrower, defender):
 
 
 def varyby(stat):
-    return random.uniform(1 - ((101 - stat) / 100), 1 + ((101 - stat) / 100))
+    return random.uniform(1 - ((100 - stat) / 100), 1 + ((100 - stat) / 100))
 
 def getgauss(a, b):
     return random.gauss(a, math.sqrt(100-b) * 1.5)
