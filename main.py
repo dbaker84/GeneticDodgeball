@@ -23,8 +23,14 @@ root.geometry("1600x900")
 root.wm_title("Genetic Dodgeball")
 root.resizable(width=FALSE, height=FALSE)
 
+# newframe = Frame(root, width=1900, height=10, bg="red")
+# newframe.pack(fill=X)
+
 
 freeagents = []
+freedoctors = []
+freetrainers = []
+freescouts = []
 teams = []
 cities = []
 usednames = []
@@ -37,6 +43,9 @@ posfactor = 4
 divfactor = 4.5
 negfactor = 20
 salaryfactor = 4
+
+# base staff salary
+staffsalary = 1000
 
 
 
@@ -56,7 +65,7 @@ stats = [["dodge", "A", "C", "D"],
         ["clutch", "O", "R", "W"],
         ["deflection", "P", "Q", "J"],
         ["ego", "Q", "M", "B"],
-        ["coachability", "R", "E", "G"],
+        ["confidence", "R", "E", "G"],
         ["nerves", "S", "Y", "E"],
         ["workethic", "T", "T", "F"],
         ["charisma", "U", "X", "C"],
@@ -103,19 +112,39 @@ class Team:
         self.city = city
         self.roster = roster
         self.fullname = city.name + " " + name
-        self.id = random.randrange(10, 9999999)
+        self.id = hash(self.fullname) % 100000000
+        
+        # Staff Positions
+        self.doctor = freedoctors.pop(random.randint(0, len(freedoctors)-1))
+        self.trainer = freetrainers.pop(random.randint(0, len(freetrainers)-1))
+        self.scout = freescouts.pop(random.randint(0, len(freescouts)-1))
+
+        self.alltime_wins = 0
+        self.alltime_losses = 0
+        self.alltime_winpercentage = 0.000
 
         self.wins = 0
         self.losses = 0
+        self.winpercentage = 0.000
+
         self.active = True
 
-        self.winpercentage = 0.000
+    def salary(self):
+        salary = 0
+        for player in self.roster:
+            salary += player.salary
+        return salary
+
+    def operating_costs(self):
+        return None
 
     def offrating(self):
         troster = []
         for x in self.roster:
             troster.append(x.offense)
         return round(statistics.mean(troster))
+
+    # dynamic ratings calculations
 
     def defrating(self):
         troster = []
@@ -136,6 +165,21 @@ class Team:
         else:
             x = round(self.wins/(self.wins + self.losses), 3)
         self.winpercentage = x
+
+    def alltime_winpercent(self):
+        if self.alltime_losses == 0:
+            x = 1.000
+        else:
+            x = round(self.alltime_wins/(self.alltime_wins + self.alltime_losses), 3)
+        self.alltime_winpercentage = x
+        
+    def win(self):
+        self.wins += 1
+        self.alltime_wins += 1
+
+    def loss(self):
+        self.losses += 1
+        self.alltime_losses += 1
 
 
 class Stadium:
@@ -187,7 +231,7 @@ class Player:
         self.defense = self.awareness + self.dodge + self.catch + self.deflection + self.nerves
         self.offense = self.tpower + self.taccuracy + self.tactics + self.tricky + self.speed
         self.intangibles = self.leadership + self.clutch + self.winner + self.patience + self.workethic
-        self.personality = self.flair + self.charisma + self.ego + self.ethics + self.coachability
+        self.personality = self.flair + self.charisma + self.ego + self.ethics + self.confidence
         self.rating = self.defense + self.offense + self.intangibles + self.personality
 
         # calc initial salary
@@ -214,8 +258,26 @@ class Player:
     def targetvalue(self, thrower):
         x = ((self.offense * thrower.offhate) + (self.defense * thrower.defhate) +
              (self.intangibles * thrower.inthate) + (self.personality * thrower.pershate)) * varyby(thrower.tactics)
-        # print(self.name, str(x))
+
         return x
+
+
+class Staff:
+    def __init__(self, name, job):
+        holder = name.split()
+        self.formalname = name
+        self.firstname = holder[0]
+        self.lastname = holder[1]
+        self.fullname = name
+
+        self.job = job
+        self.ability = random.randrange(1, 100)
+        self.reliability = random.randrange(1, 100)
+        self.loyalty = random.randrange(1, 100)
+        self.self_worth = random.uniform(.6, 1.4)
+
+        self.salary = round(self.self_worth * staffsalary, 2)
+
 
 
 class Gene:
@@ -306,6 +368,51 @@ def createplayer():
 
     return newplayer
 
+def createstaff(job):
+    filename = open("GermanFirst.txt")
+    germanfirstnames = [i.strip() for i in filename.readlines()]
+    filename.close()
+
+    filename = open("GermanLast.txt")
+    germanlastnames = [i.strip() for i in filename.readlines()]
+    filename.close()
+
+    filename = open("JapaneseFirst.txt")
+    japanesefirstnames = [i.strip() for i in filename.readlines()]
+    filename.close()
+
+    filename = open("JapaneseLast.txt")
+    japaneselastnames = [i.strip() for i in filename.readlines()]
+    filename.close()
+
+    needname = True
+
+    if random.randrange(0, 100) > 40:
+        nationality = "German"
+    else:
+        nationality = "Japanese"
+
+    while needname:
+        if nationality == "German":
+            tempname = germanfirstnames[random.randint(0, len(germanfirstnames)-1)].strip() + " " + germanlastnames[random.randint(0, len(germanlastnames)-1)].strip()
+        else:
+            tempname = japanesefirstnames[random.randint(0, len(japanesefirstnames)-1)] + " " + japaneselastnames[random.randint(0, len(japaneselastnames)-1)]
+        if tempname in usednames:
+            pass
+        else:
+            usednames.append(tempname)
+            needname = False
+
+    # Generate Genome
+
+    newstaff = Staff(tempname, job)
+    newstaff.nationality = nationality
+
+    # for item in newPlayer:
+    #     print(item, " ", newPlayer[item])
+
+    return newstaff
+
 def newplayers(x):
     freeagents.clear()
     for i in range(1, x):
@@ -321,12 +428,21 @@ def newplayers(x):
     offs = []
     for player in freeagents:
         offs.append(player.offense)
-    print(round(statistics.mean(offs), 1))
 
     defs = []
     for player in freeagents:
         defs.append(player.defense)
-    print(round(statistics.mean(defs), 1))
+
+def newstaff(x):
+    # create team doctor pool
+    for i in range(1, x):
+        freedoctors.append(createstaff("Doctor"))
+
+    for i in range(1, x):
+        freetrainers.append(createstaff("Trainer"))
+        
+    for i in range(1, x):
+        freescouts.append(createstaff("Scout"))
 
 
 def newteams(x):
@@ -371,33 +487,98 @@ def newleaguebutton():
     for child in mainbox.winfo_children():
         child.destroy()
 
-    for child in controlbar.winfo_children():
-        child.destroy()
+    # for child in controlbar.winfo_children():
+    #     child.destroy()
 
     newplayers(500)
+    newstaff(50)
     newteams(8)
     pickyourteam()
 
 
 def playseason():
+    for team in teams:
+        team.wins = 0
+        team.losses = 0
+
     for i in range(0, len(teams)):
         for j in range(0, len(teams)):
             if i != j:
                 play_game(teams[i], teams[j])
 
-    updatestats()
     leaguestandings()
 
 def leaguestandings():
     for child in mainbox.winfo_children():
         child.destroy()
 
-    tempframe = Frame(mainbox, height=300, width=600)
+    tempframe = Frame(mainbox, width=1900)
     tempframe.pack()
 
     for i in teams:
         words = "%s  %s - %s (%s) [%s]" % (i.fullname, str(i.wins), str(i.losses), ('%.3f' % i.winpercentage), str(i.offrating() +i.defrating()))
         Label(tempframe, text=words).pack()
+
+
+def calc_team_mgmt_eff(teams):
+    effs = []
+    for team in teams:
+        effs.append((team.offrating() + team.defrating()) / team.salary())
+
+    return statistics.mean(effs)
+
+def calc_team_win_eff(teams):
+    effs = []
+    for team in teams:
+        effs.append(team.alltime_winpercentage / team.salary())
+
+    if statistics.mean(effs) == 0:
+        return 0.000000000000001
+    else:
+        return statistics.mean(effs)
+        
+        
+def league_team_data():
+    for child in mainbox.winfo_children():
+        child.destroy()
+
+    tempframe = Frame(mainbox)
+
+    row_iter = 0
+
+    Label(tempframe, text="League-Wide Data").grid(row=row_iter, columnspan=8)
+    row_iter += 1
+
+    Label(tempframe, text="Name").grid(row=row_iter, column=0)
+    Label(tempframe, text="All-Time Wins").grid(row=row_iter, column=1)
+    Label(tempframe, text="All-Time Losses").grid(row=row_iter, column=2)
+    Label(tempframe, text="Rating").grid(row=row_iter, column=3)
+    Label(tempframe, text="Salary").grid(row=row_iter, column=4)
+    Label(tempframe, text="All-time Win %").grid(row=row_iter, column=5)
+    Label(tempframe, text="Salary Efficiency").grid(row=row_iter, column=6)
+    Label(tempframe, text="Win Efficiency").grid(row=row_iter, column=7)
+    row_iter += 1
+
+    league_mgmt_eff = calc_team_mgmt_eff(teams)
+    league_win_eff = calc_team_win_eff(teams)
+
+    for team in teams:
+        Label(tempframe, text=team.fullname).grid(row=row_iter, column=0)
+        Label(tempframe, text=team.alltime_wins).grid(row=row_iter, column=1)
+        Label(tempframe, text=team.alltime_losses).grid(row=row_iter, column=2)
+        Label(tempframe, text=str(team.offrating() + team.defrating())).grid(row=row_iter, column=3)
+        Label(tempframe, text="$%.2f" % team.salary()).grid(row=row_iter, column=4)
+        Label(tempframe, text='%.3f' % team.alltime_winpercentage).grid(row=row_iter, column=5)
+
+        eff = round(((team.offrating() + team.defrating()) / team.salary()) / league_mgmt_eff, 3)
+        Label(tempframe, text=eff).grid(row=row_iter, column=6)
+
+        eff = round((team.alltime_winpercentage / team.salary()) / league_win_eff, 3)
+        Label(tempframe, text=eff).grid(row=row_iter, column=7)
+
+        row_iter += 1
+
+    tempframe.pack()
 
 
 def playerstats():
@@ -446,16 +627,22 @@ def show_owner_team_roster(team):
 
     tempframe = Frame(mainbox)
 
-    Label(tempframe, text="%s Roster" % theowner.team.fullname).grid(row=0, columnspan=6)
+    row_iter = 0
 
-    Label(tempframe, text="Name").grid(row=1, column=0)
-    Label(tempframe, text="Offense").grid(row=1, column=1)
-    Label(tempframe, text="Defense").grid(row=1, column=2)
-    Label(tempframe, text="Intangibles").grid(row=1, column=3)
-    Label(tempframe, text="Personality").grid(row=1, column=4)
-    Label(tempframe, text="TOTAL").grid(row=1, column=5)
+    Label(tempframe, text="%s Roster" % theowner.team.fullname).grid(row=row_iter, columnspan=6)
+    row_iter += 1
 
-    row_iter = 2
+    Label(tempframe, text="Weekly Salary Cost: $%.2f" % theowner.team.salary()).grid(row=row_iter, columnspan=6)
+    row_iter += 1
+
+    Label(tempframe, text="Name").grid(row=row_iter, column=0)
+    Label(tempframe, text="Offense").grid(row=row_iter, column=1)
+    Label(tempframe, text="Defense").grid(row=row_iter, column=2)
+    Label(tempframe, text="Intangibles").grid(row=row_iter, column=3)
+    Label(tempframe, text="Personality").grid(row=row_iter, column=4)
+    Label(tempframe, text="TOTAL").grid(row=row_iter, column=5)
+    row_iter += 1
+
     for player in team.roster:
         Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
         Label(tempframe, text=player.offense).grid(row=row_iter, column=1)
@@ -489,14 +676,49 @@ def manage_owner_team_roster(team):
     tempframe.pack(side=LEFT)
 
 
+def manage_owner_team_staff(team):
+    for child in mainbox.winfo_children():
+        child.destroy()
+
+    tempframe = Frame(mainbox)
+
+    Label(tempframe, text="Name").grid(row=0, column=0)
+    Label(tempframe, text="Position").grid(row=0, column=1)
+    Label(tempframe, text="Ability").grid(row=0, column=2)
+    Label(tempframe, text="Salary").grid(row=0, column=3)
+
+    # positions = ["Doctor", "Trainer", "Scout"]
+    row_iter = 1
+
+    Label(tempframe, text=team.doctor.fullname).grid(row=row_iter, column=0)
+    Label(tempframe, text=team.doctor.job).grid(row=row_iter, column=1)
+    Label(tempframe, text=team.doctor.ability).grid(row=row_iter, column=2)
+    Label(tempframe, text="$%.2f" % team.doctor.salary).grid(row=row_iter, column=3)
+    row_iter += 1
+
+    Label(tempframe, text=team.trainer.fullname).grid(row=row_iter, column=0)
+    Label(tempframe, text=team.trainer.job).grid(row=row_iter, column=1)
+    Label(tempframe, text=team.trainer.ability).grid(row=row_iter, column=2)
+    Label(tempframe, text="$%.2f" % team.trainer.salary).grid(row=row_iter, column=3)
+    row_iter += 1
+    
+    Label(tempframe, text=team.scout.fullname).grid(row=row_iter, column=0)
+    Label(tempframe, text=team.scout.job).grid(row=row_iter, column=1)
+    Label(tempframe, text=team.scout.ability).grid(row=row_iter, column=2)
+    Label(tempframe, text="$%.2f" % team.scout.salary).grid(row=row_iter, column=3)
+    row_iter += 1
+    
+    tempframe.pack(side=LEFT)
+
+
 def manage_free_agents():
     for child in mainbox.winfo_children():
         child.destroy()
 
     canvas = Canvas(mainbox, scrollregion=(0, 0, 300, 3000))
     scroll = Scrollbar(mainbox, command=canvas.yview)
-    canvas.pack(side=LEFT)
-    canvas.config(width=300, height=3000, yscrollcommand=scroll.set)
+    canvas.pack(side=LEFT, fill=BOTH)
+    canvas.config(height=3000, width=300, yscrollcommand=scroll.set)
     scroll.pack(side=RIGHT, fill=Y)
 
     # frame=Frame(root,width=300,height=300)
@@ -558,59 +780,32 @@ def begingame(team):
     for child in mainbox.winfo_children():
         child.destroy()
 
+    drawmenubar()
     # name = get_player_name.get()
     theowner.team = team
     Label(mainbox, text="You are now the owner of the %s" % theowner.team.fullname).grid(row=0, column=0)
-    print("%s" % theowner.team.fullname)
-
-    drawtestbar()
-    drawteambar()  ## can only draw team bar after team is set to owner
 
 
+def drawmenubar():
+    Button(controlbar, text="New League", command=newleaguebutton).grid(row=0, column=0, padx=3)
 
-def drawtestbar():
-    testbar = Frame(controlbar, bg="blue")
+    Button(controlbar, text="Play Full Season", command=playseason).grid(row=0, column=1, padx=3)
 
-    newplayersbutton = Button(testbar, text="New League", command=newleaguebutton)
-    newplayersbutton.pack(side=LEFT, padx=2, pady=2)
+    Button(controlbar, text="League Standings", command=leaguestandings).grid(row=0, column=2, padx=3)
 
-    # rosterTestButton = Button(testbar, text="Show Random Roster", command=randomroster)
-    # rosterTestButton.pack(side=LEFT, padx=2, pady=2)
+    Button(controlbar, text="Player Stats", command=playerstats).grid(row=0, column=3, padx=3)
 
-    playseasonbutton = Button(testbar, text="Play Full Season", command=playseason)
-    playseasonbutton.pack(side=LEFT, padx=2, pady=2)
+    Button(controlbar, text="View Roster", command=lambda: show_owner_team_roster(theowner.team)).grid(row=1, column=0, padx=2, pady=2)
 
-    leaguestandingsbutton = Button(testbar, text="League Standings", command=leaguestandings)
-    leaguestandingsbutton.pack(side=LEFT, padx=2, pady=2)
+    Button(controlbar, text="Manage Roster", command=lambda: manage_owner_team_roster(theowner.team)).grid(row=1, column=1, padx=2, pady=2)
 
-    playerstatsbutton = Button(testbar, text="Player Stats", command=playerstats)
-    playerstatsbutton.pack(side=LEFT, padx=2, pady=2)
+    Button(controlbar, text="Manage Staff", command=lambda: manage_owner_team_staff(theowner.team)).grid(row=1, column=2, padx=2, pady=2)
 
-    testtargetbutton = Button(testbar, text="Random Game", command=lambda: pickteams(10))
-    testtargetbutton.pack(side=LEFT, padx=2, pady=2)
+    Button(controlbar, text="Free Agents", command=lambda: manage_free_agents()).grid(row=1, column=3, padx=2, pady=2)
 
-    # testTargetButton = Button(testbar, text="Random Game", command=lambda: throwround(teams[0], teams[1]))
-    # testTargetButton.pack(side=LEFT, padx=2, pady=2)
-
-    # testGenomeButton = Button(testbar, text="Generate Genome", command=creategenome())
-    # testGenomeButton.pack(side=LEFT, padx=2, pady=2)
-
-    testbar.pack(side=TOP, fill=X)
+    Button(controlbar, text="League Team Data", command=lambda: league_team_data()).grid(row=1, column=4, padx=2, pady=2)
 
 
-def drawteambar():
-    teambar = Frame(controlbar, bg="navy")
-
-    showteamroster = Button(teambar, text="View Roster", command=lambda: show_owner_team_roster(theowner.team))
-    showteamroster.grid(row=0, column=0, padx=2, pady=2)
-
-    manageteamroster = Button(teambar, text="Manage Roster", command=lambda: manage_owner_team_roster(theowner.team))
-    manageteamroster.grid(row=0, column=1, padx=2, pady=2)
-
-    freeagentmarket = Button(teambar, text="Free Agents", command=lambda: manage_free_agents())
-    freeagentmarket.grid(row=0, column=2, padx=2, pady=2)
-
-    teambar.pack(side=TOP, fill=X)
 
 ### DRAW THE INTERFACE FRAMES ###
 
@@ -618,32 +813,41 @@ def drawteambar():
 
 titlefont = font.Font(family='Century Gothic', size=24, weight='bold')
 
-Label(root, text="GENETIC DODGEBALL", font=titlefont).pack(side=TOP)
+Label(root, text="GENETIC DODGEBALL", font=titlefont, width=60).pack(side=TOP)
 
-controlbar = Frame(root)
+controlbar = Frame(root, width=150, background="navy", height=20)
 controlbar.pack(side=TOP)
+
 
 ### spacer frame ###
 Frame(root, height="20").pack(side=TOP)
 
-mainbox = Frame(root)
+mainbox = Frame(root, width=1900)
 mainbox.pack(side=TOP)
+
 
 newleaguebutton()
 
-# startButton = Button(mainbox, text="START!", command=begingame)
-# startButton.grid(row=2, columnspan=2)
 
 
+def updatestats(team):
+    team.winpercent()
+    team.alltime_winpercent()
+
+    # teams.sort(key=lambda x: x.winpercentage, reverse=True)
+    # teams.sort(winpercentage, reverse=True)
 
 
-
-def updatestats():
-    for i in teams:
-        i.winpercent()
+def sort_by_winpercentage():
+    for team in teams:
+        team.winpercent()
+        team.alltime_winpercent()
 
     teams.sort(key=lambda x: x.winpercentage, reverse=True)
     # teams.sort(winpercentage, reverse=True)
+
+
+
 
 
 def play_game(team1, team2):
@@ -750,12 +954,15 @@ def play_game(team1, team2):
 
     if home.playersleft() == 0:
         text2.insert(END, "-- Visitors Win --\n")
-        visitor.wins += 1
-        home.losses += 1
+        visitor.win()
+        home.loss()
     else:
         text2.insert(END, "-- Home Wins --\n")
-        home.wins += 1
-        visitor.losses += 1
+        home.win()
+        visitor.loss()
+
+    updatestats(home)
+    updatestats(visitor)
 
     text2.insert(END, "-- Remaining Players --\n")
 
@@ -789,10 +996,9 @@ def selecttarget(thrower, opponents):
     else:
         return False
 
-difficulties = []
-accuracies = []
 
 def throw(thrower, defender):
+    accuracies = []
     incomingpower = getgauss(thrower.tpower, thrower.pconsist)
     incomingaccuracy = getgauss(thrower.taccuracy, thrower.pconsist)
     accuracies.append(incomingaccuracy)
@@ -829,5 +1035,5 @@ def calcdev(x):
 
 
 
-
+root.wm_state('zoomed')
 root.mainloop()
