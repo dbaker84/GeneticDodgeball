@@ -257,6 +257,8 @@ class Player:
         self.team = False
         self.starter = True
 
+        self.ticker = 0
+
         self.offhate = random.randrange(1, 100)
         self.defhate = random.randrange(1, 100)
         self.inthate = random.randrange(1, 100)
@@ -288,6 +290,12 @@ class Player:
         self.career_assassinations = 0
         self.career_wins = 0
         self.career_losses = 0
+
+    def turn_reset(self):
+        self.ticker = 110 - self.speed
+
+    def turn_dec(self, dec):
+        self.ticker -= dec
 
     def targetvalue(self, thrower):
         x = ((self.offense * thrower.offhate) + (self.defense * thrower.defhate) +
@@ -714,7 +722,7 @@ def play_random_game():
             starters += 1
 
     if starters == 9:
-        play_game(theowner.team, random.choice(teams))
+        new_play_game(theowner.team, random.choice(teams))
     else:
         Label(mainbox, text="Need 9 starters to play a game").pack()
 
@@ -1112,6 +1120,142 @@ def play_game(team1, team2):
                     x.career_wasdodged += 1
         text2.insert(END, "-- End of Round --\n")
 
+    if home.playersleft() == 0:
+        text2.insert(END, "-- Visitors Win --\n")
+        visitor.win()
+        home.loss()
+    else:
+        text2.insert(END, "-- Home Wins --\n")
+        home.win()
+        visitor.loss()
+
+    updatestats(home)
+    updatestats(visitor)
+
+    text2.insert(END, "-- Remaining Players --\n")
+
+    text2.insert(END, "- Home -\n")
+    for y in home.roster:
+        if y.ingame:
+            text2.insert(END, y.fullname + "\n")
+        else:
+            y.ingame = True
+
+    text2.insert(END, "- Visitors -\n")
+    for y in visitor.roster:
+        if y.ingame:
+            text2.insert(END, y.fullname + "\n")
+        else:
+            y.ingame = True
+
+def new_play_game(team1, team2):
+    for child in mainbox.winfo_children():
+        child.destroy()
+
+    # tempframe = Frame(mainbox)
+    # tempframe.pack()
+
+    # text2 = Text(mainbox, height=40, width=60)
+    # scroll = Scrollbar(mainbox, command=text2.yview)
+    # text2.configure(yscrollcommand=scroll.set)
+    # text2.pack(side=LEFT)
+    # scroll.pack(side=RIGHT, fill=Y)
+
+    text2 = Text(mainbox)
+    scroll = Scrollbar(mainbox, command=text2.yview)
+    text2.configure(yscrollcommand=scroll.set)
+    text2.pack(side=LEFT)
+    scroll.pack(side=RIGHT, fill=Y)
+
+    home = team1
+    visitor = team2
+
+    # teams_in_match = [team1, team2]
+
+    text2.insert(END, "%s [%soff %sdef] vs. %s [%soff %sdef]\n" % (home.fullname, home.offrating(), home.defrating(),
+                                                                   visitor.fullname, visitor.offrating(), visitor.defrating()))
+    text2.insert(END, "- Home -\n")
+    for y in home.roster:
+        text2.insert(END, y.fullname + "\n")
+    text2.insert(END, "- Visitors -\n")
+    for y in visitor.roster:
+        text2.insert(END, y.fullname + "\n")
+
+    text2.insert(END, "Start Game!\n")
+
+    matchplayers = home.roster + visitor.roster
+
+    for player in matchplayers:
+        player.turn_reset()
+        print(player.ticker)
+
+    matchplayers.sort(key=lambda x: x.ticker)
+
+    first_turn = True
+
+    # check to make sure no team is depleted to 0 available players
+    while matchplayers:
+        # start new turn
+        # sort available players by ticker
+
+        # reset player that went ticker
+        if not first_turn:
+            matchplayers[0].turn_reset()
+
+        matchplayers.sort(key=lambda x: x.ticker)
+
+        # reduce all tickers by amount of the fastest player's ticker
+        amt = matchplayers[0].ticker
+        for player in matchplayers:
+            player.turn_dec(amt)
+
+        # let fastest player take turn
+        print()
+        text2.insert(END, "[%s (%s) of the %s]\n" % (matchplayers[0].fullname, matchplayers[0].speed, matchplayers[0].team.name))
+
+        # select target
+
+        if matchplayers[0].team == home:
+            target = selecttarget(matchplayers[0], visitor)
+        if matchplayers[0].team == visitor:
+            target = selecttarget(matchplayers[0], home)
+        if not target:
+            break
+        result = throw(matchplayers[0], target)
+        matchplayers[0].career_throws += 1
+        if result == "unawarehit":
+            text2.insert(END, "%s sees that %s unaware and hits him!\n" % (matchplayers[0].fullname, target.fullname))
+            target.career_blindsided += 1
+            matchplayers[0].career_hits += 1
+            target.ingame = False
+        if result == "catchfail":
+            text2.insert(END, "%s tries to catch a throw by %s but can't hold on!\n" % (target.fullname, matchplayers[0].fullname))
+            target.career_catch_fail += 1
+            matchplayers[0].career_hits += 1
+            target.ingame = False
+        if result == "dodgefail":
+            text2.insert(END, "%s fails to dodge a throw by %s!\n" % (target.fullname, matchplayers[0].fullname))
+            target.career_dodge_fail += 1
+            matchplayers[0].career_hits += 1
+            target.ingame = False
+        if result == "catch":
+            text2.insert(END, "%s's throw is caught by %s!\n" % (matchplayers[0].fullname, target.fullname))
+            target.career_catch_succ += 1
+            matchplayers[0].career_wascaught += 1
+            matchplayers[0].ingame = False
+        if result == "dodge":
+            text2.insert(END, "%s dodges a throw by %s!\n" % (target.fullname, matchplayers[0].fullname))
+            target.career_dodge_succ += 1
+            matchplayers[0].career_wasdodged += 1
+
+        # cleanup out players
+        for player in matchplayers:
+            if not player.ingame:
+                matchplayers.remove(player)
+
+        first_turn = False
+
+                
     if home.playersleft() == 0:
         text2.insert(END, "-- Visitors Win --\n")
         visitor.win()
