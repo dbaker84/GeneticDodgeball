@@ -23,9 +23,6 @@ root.geometry("1600x900")
 root.wm_title("Genetic Dodgeball")
 root.resizable(width=FALSE, height=FALSE)
 
-# newframe = Frame(root, width=1900, height=10, bg="red")
-# newframe.pack(fill=X)
-
 
 freeagents = []
 freedoctors = []
@@ -36,7 +33,13 @@ cities = []
 usednames = []
 curnum = 1
 
+calendars = []
 
+
+
+# GAME BEHAVIOR CONSTANTS
+#     Use these to modify game behavior
+#     Default values commented below
 
 # global variables for decoding genomes
 posfactor = 4
@@ -44,38 +47,35 @@ divfactor = 4.5
 negfactor = 20
 salaryfactor = 4
 
-# base staff salary
+# staff constants
 staffsalary = 1000
+doctorfactor = 5.0
+trainerfactor = 3.0
+scoutfactor = 3.0
+
+# END BEHAVIOR CONSTANTS
 
 
+# randomize what genes control which attributes
+skills = ["dodge", "catch", "tpower", "taccuracy", "stamina", "tricky", "awareness", "tactics", "pconsist", "mconsist",
+          "leadership", "flair", "speed", "clutch", "deflection", "ego", "confidence", "nerves", "workethic",
+          "charisma", "unused", "patience", "ethics", "winner"]
 
-stats = [["dodge", "A", "C", "D"],
-        ["catch", "B", "D", "X"],
-        ["tpower", "C", "F", "O"],
-        ["taccuracy", "D", "P", "U"],
-        ["stamina", "E", "B", "N"],
-        ["tricky", "F", "O", "K"],
-        ["awareness", "G", "J", "Z"],
-        ["tactics", "H", "H", "R"],
-        ["pconsist", "J", "N", "P"],
-        ["mconsist", "K", "Z", "H"],
-        ["leadership", "L", "U", "A"],
-        ["flair", "M", "W", "Q"],
-        ["speed", "N", "G", "T"],
-        ["clutch", "O", "R", "W"],
-        ["deflection", "P", "Q", "J"],
-        ["ego", "Q", "M", "B"],
-        ["confidence", "R", "E", "G"],
-        ["nerves", "S", "Y", "E"],
-        ["workethic", "T", "T", "F"],
-        ["charisma", "U", "X", "C"],
-        ["unused", "W", "S", "L"],
-        ["patience", "X", "L", "M"],
-        ["ethics", "Y", "K", "S"],
-        ["winner", "Z", "A", "Y"]]
+stats = []
+
+stronggenes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'W', 'X', 'Y', 'Z']
+weakgenes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'W', 'X', 'Y', 'Z']
+contragenes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'W', 'X', 'Y', 'Z']
+
+for skill in skills:
+    genes = [random.randrange(0, len(stronggenes)), random.randrange(0, len(weakgenes)), random.randrange(0, len(contragenes))]
+    stats.append([skill, stronggenes.pop(genes[0]), weakgenes.pop(genes[1]), contragenes.pop(genes[2])])
+
+
 
 geneseq = "ABCDEFGHJKLMNOPQRSTUWXYZ"
 
+# stats to track
 season_stat_list = [
         "season_throws",
         "season_dodge_fail",
@@ -105,6 +105,35 @@ def best_player(stat_name):
 
 
 sclamp = lambda n: round(max(min(100, n), 1))
+
+class Date:
+    def __init__(self, day=1, week=1, year=None):
+        self.day = day
+        self.week = week
+        self.year = year
+
+    def inc(self, num=1):
+        self.day += num
+        if self.day > 7:
+            self.week += 1
+            self.day %= 7
+
+        date_box.config(text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
+global_date = Date(1, 1, 2000 + int(random.uniform(100, 20)))
+
+class Matchup:
+    def __init__(self, home, away, date, winner=None):
+        self.home = home
+        self.away = away
+        self.date = date
+        self.winner = winner
+
+
+class Calendar:
+    def __init__(self, year):
+        self.year = year
+        self.matches = []
+
 
 class Team:
     def __init__(self, city, name, roster):
@@ -191,11 +220,19 @@ class Stadium:
 
 
 class City:
-    def __init__(self, name, country, population, rabidity):
+    def __init__(self, name, country, unique_factor, fans, rabidity, loyalty, avg_income):
         self.name = name
         self.country = country
-        self.population = population
+        self.unique_factor = unique_factor
+        self.fans = fans
         self.rabidity = rabidity
+        self.loyalty = loyalty
+        self.avg_income = avg_income
+
+        self.appeal = int(self.unique_factor * self.fans * self.rabidity * self.loyalty * self.avg_income)
+
+    def recalc_city(self):
+        self.appeal = int(self.rabidity * self.population * self.avg_income)
 
 
 class Player:
@@ -214,14 +251,11 @@ class Player:
                         (math.sqrt(getattr(genome, stat[2]).error))))) / divfactor) - ((getattr(genome, stat[3]).value +
                         random.uniform(-(math.sqrt(getattr(genome, stat[3]).error)), (math.sqrt(getattr(genome, stat[3]).error)))) / negfactor)))
 
-        # print("the dodge for ", self.name, " is ", str(self.dodge))
-        # print("the catch for ", self.name, " is ", str(self.catch))
-        # print("the flair for ", self.name, " is ", str(self.flair))
-
         # all players start alive
         self.alive = True
         self.ingame = True
         self.team = False
+        self.starter = True
 
         self.offhate = random.randrange(1, 100)
         self.defhate = random.randrange(1, 100)
@@ -263,7 +297,7 @@ class Player:
 
 
 class Staff:
-    def __init__(self, name, job):
+    def __init__(self, name, job, ability, reliability, loyalty, self_worth):
         holder = name.split()
         self.formalname = name
         self.firstname = holder[0]
@@ -271,12 +305,19 @@ class Staff:
         self.fullname = name
 
         self.job = job
-        self.ability = random.randrange(1, 100)
-        self.reliability = random.randrange(1, 100)
-        self.loyalty = random.randrange(1, 100)
-        self.self_worth = random.uniform(.6, 1.4)
+        self.ability = ability
+        self.reliability = reliability
+        self.loyalty = loyalty
+        self.self_worth = self_worth
 
-        self.salary = round(self.self_worth * staffsalary, 2)
+        if self.job == "Doctor":
+            factor = doctorfactor
+        if self.job == "Trainer":
+            factor = trainerfactor
+        if self.job == "Scout":
+            factor = scoutfactor
+
+        self.salary = round(self.self_worth * (.5 + (self.ability / 100)) * staffsalary * factor, 2)
 
 
 
@@ -313,12 +354,22 @@ def createcities():
         # skip=next(cr)  #skip the first row of keys "a,b,c,d"
         citylist = [l for l in cr]
     for city in citylist:
-        cities.append(City(city[0], city[1], city[2], random.gauss(50, 10)))
+        fans = math.sqrt(int(city[2])) * random.uniform(.1, 1.0)
+        rabidity = int(random.gauss(50, 15))
+        loyalty = int(random.gauss(50, 15))
+        avg_income = int(random.gauss(10000, 2000))
+        cities.append(City(city[0], city[1], int(city[2]), fans, rabidity, loyalty, avg_income))
 
     # for city in cities:
-    #     print("%s %s %s %s" % (city.name, city.country, city.population, round(city.rabidity, 1)))
+    #     print("%s %s %s %s %s" % (city.name, city.country, city.population, city.rabidity, city.loyalty))
 
 createcities()
+
+# debug feature - sorts cities by appeal and lists them in console
+def city_list():
+    cities.sort(key=lambda x: x.appeal, reverse=True)
+    for city in cities:
+        print(city.name, city.appeal)
 
 def createplayer():
     filename = open("GermanFirst.txt")
@@ -405,7 +456,13 @@ def createstaff(job):
 
     # Generate Genome
 
-    newstaff = Staff(tempname, job)
+    job = job
+    ability = random.randrange(1, 100)
+    reliability = random.randrange(1, 100)
+    loyalty = random.randrange(1, 100)
+    self_worth = random.uniform(.6, 1.4)
+
+    newstaff = Staff(tempname, job, ability, reliability, loyalty, self_worth)
     newstaff.nationality = nationality
 
     # for item in newPlayer:
@@ -418,13 +475,6 @@ def newplayers(x):
     for i in range(1, x):
         freeagents.append(createplayer())
 
-    # ticker = 0
-    # for player in freeagents:
-    #     if player.taccuracy < 45 or player.pconsist or player.awareness < 33:
-    #         ticker += 1
-    #         freeagents.pop(freeagents.index(player))
-    # print(ticker)
-
     offs = []
     for player in freeagents:
         offs.append(player.offense)
@@ -433,8 +483,8 @@ def newplayers(x):
     for player in freeagents:
         defs.append(player.defense)
 
-def newstaff(x):
-    # create team doctor pool
+def gen_newstaff(x):
+    # create doctor pool
     for i in range(1, x):
         freedoctors.append(createstaff("Doctor"))
 
@@ -460,7 +510,7 @@ def newteams(x):
         teams.append(Team(cities.pop(random.randint(0, len(cities)-1)), namelist.pop(random.randint(0, len(namelist)-1)), []))
 
     for team in teams:
-        for i in range(0, 5):
+        for i in range(0, 9):
             pick_player = random.randint(0, len(freeagents)-1)
             addplayer(freeagents[pick_player], team)
 
@@ -483,6 +533,14 @@ def addplayer(player, team):
     player.team = team
     team.roster.append(freeagents.pop(freeagents.index(player)))
 
+def manage_bench_player(player):
+    player.starter = False
+    manage_owner_team_roster(theowner.team)
+
+def manage_start_player(player):
+    player.starter = True
+    manage_owner_team_roster(theowner.team)
+
 def newleaguebutton():
     for child in mainbox.winfo_children():
         child.destroy()
@@ -491,8 +549,8 @@ def newleaguebutton():
     #     child.destroy()
 
     newplayers(500)
-    newstaff(50)
-    newteams(8)
+    gen_newstaff(50)
+    newteams(12)
     pickyourteam()
 
 
@@ -507,6 +565,30 @@ def playseason():
                 play_game(teams[i], teams[j])
 
     leaguestandings()
+
+
+def next_day():
+    pass
+
+def build_season_calendar(year=global_date.year):
+    # week schedule
+    new_season = Calendar(year)
+    for week in range(1, 11):
+        teams_avail = list(teams)
+        random.shuffle(teams_avail)
+        while teams_avail:
+            home = teams_avail.pop()
+            away = teams_avail.pop()
+            new_season.matches.append(Matchup(home, away, Date(6, week, year)))
+
+    calendars.append(new_season)
+
+    for calendar in calendars:
+        if calendar.year == global_date.year:
+            print("Found the correct year")
+            for match in calendar.matches:
+                print("Week %s  Home %s   Away %s" % (match.date.week, match.home.fullname, match.away.fullname))
+
 
 def leaguestandings():
     for child in mainbox.winfo_children():
@@ -621,6 +703,24 @@ def playerstats():
     # Label(mainbox, text=words).pack()
 
 
+def play_random_game():
+
+    for child in mainbox.winfo_children():
+        child.destroy()
+
+    starters = 0
+    for player in theowner.team.roster:
+        if player.starter:
+            starters += 1
+
+    if starters == 9:
+        play_game(theowner.team, random.choice(teams))
+    else:
+        Label(mainbox, text="Need 9 starters to play a game").pack()
+
+    global_date.inc()
+
+
 def show_owner_team_roster(team):
     for child in mainbox.winfo_children():
         child.destroy()
@@ -661,19 +761,43 @@ def manage_owner_team_roster(team):
 
     tempframe = Frame(mainbox)
 
-    Label(tempframe, text="Name").grid(row=0, column=0)
-    Label(tempframe, text="Rating").grid(row=0, column=1)
-    Label(tempframe, text="Salary").grid(row=0, column=2)
+    Label(tempframe, text="STARTERS").grid(row=0, columnspan=3)
 
-    row_iter = 1
+    Label(tempframe, text="Name").grid(row=1, column=0)
+    Label(tempframe, text="Rating").grid(row=1, column=1)
+    Label(tempframe, text="Salary").grid(row=1, column=2)
+
+    row_iter = 2
     for player in team.roster:
-        Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
-        Label(tempframe, text=player.rating).grid(row=row_iter, column=1)
-        Label(tempframe, text="$%.2f" % player.salary).grid(row=row_iter, column=2)
-        Button(tempframe, text="Drop %s" % player.fullname, width=25, command=lambda x=player: manage_drop_player(x)).grid(row=row_iter, column=3)
-        row_iter += 1
+        if player.starter:
+            Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
+            Label(tempframe, text=player.rating).grid(row=row_iter, column=1)
+            Label(tempframe, text="$%.2f" % player.salary).grid(row=row_iter, column=2)
+            Button(tempframe, text="Start", width=10, command=lambda x=player: manage_start_player(x)).grid(row=row_iter, column=3)
+            Button(tempframe, text="Bench", width=10, command=lambda x=player: manage_bench_player(x)).grid(row=row_iter, column=4)
+            Button(tempframe, text="Drop", width=10, command=lambda x=player: manage_drop_player(x)).grid(row=row_iter, column=5)
+            row_iter += 1
+
+    Label(tempframe, text="BENCH").grid(row=row_iter, columnspan=3)
+    row_iter += 1
+
+    Label(tempframe, text="Name").grid(row=row_iter, column=0)
+    Label(tempframe, text="Rating").grid(row=row_iter, column=1)
+    Label(tempframe, text="Salary").grid(row=row_iter, column=2)
+    row_iter += 1
+
+    for player in team.roster:
+        if not player.starter:
+            Label(tempframe, text=player.fullname).grid(row=row_iter, column=0)
+            Label(tempframe, text=player.rating).grid(row=row_iter, column=1)
+            Label(tempframe, text="$%.2f" % player.salary).grid(row=row_iter, column=2)
+            Button(tempframe, text="Start", width=10, command=lambda x=player: manage_start_player(x)).grid(row=row_iter, column=3)
+            Button(tempframe, text="Bench", width=10, command=lambda x=player: manage_bench_player(x)).grid(row=row_iter, column=4)
+            Button(tempframe, text="Drop", width=10, command=lambda x=player: manage_drop_player(x)).grid(row=row_iter, column=5)
+            row_iter += 1
 
     tempframe.pack(side=LEFT)
+
 
 
 def manage_owner_team_staff(team):
@@ -711,38 +835,58 @@ def manage_owner_team_staff(team):
     tempframe.pack(side=LEFT)
 
 
+
+
 def manage_free_agents():
     for child in mainbox.winfo_children():
         child.destroy()
 
-    canvas = Canvas(mainbox, scrollregion=(0, 0, 300, 3000))
-    scroll = Scrollbar(mainbox, command=canvas.yview)
-    canvas.pack(side=LEFT, fill=BOTH)
-    canvas.config(height=3000, width=300, yscrollcommand=scroll.set)
-    scroll.pack(side=RIGHT, fill=Y)
+    # Main window
+    # Grid sizing behavior in window
+    mainbox.grid_rowconfigure(0, weight=1)
+    mainbox.grid_columnconfigure(0, weight=1)
 
-    # frame=Frame(root,width=300,height=300)
-    # frame.pack()
-    # canvas=Canvas(frame,bg='#FFFFFF',width=300,height=300,scrollregion=(0,0,500,500))
-    # hbar=Scrollbar(frame,orient=HORIZONTAL)
-    # hbar.pack(side=BOTTOM,fill=X)
-    # hbar.config(command=canvas.xview)
-    # vbar=Scrollbar(frame,orient=VERTICAL)
-    # vbar.pack(side=RIGHT,fill=Y)
-    # vbar.config(command=canvas.yview)
-    # canvas.config(width=300,height=300)
-    # canvas.config(xscrollcommand=hbar.set, yscrollcommand=vbar.set)
-    # canvas.pack(side=LEFT,expand=True,fill=BOTH)
+    # Canvas
+    cnv = Canvas(mainbox, height=900, width=1500)
+    cnv.grid(row=0, column=0, sticky='nswe')
 
-    Label(canvas, text="Name").grid(row=0, column=0)
-    Label(canvas, text="TOTAL").grid(row=0, column=1)
+    ## Scrollbars for canvas
+    vScroll = Scrollbar(mainbox, orient=VERTICAL, command=cnv.yview)
+    vScroll.grid(row=0, column=1, sticky='ns')
+    cnv.configure(yscrollcommand=vScroll.set)
 
+    ## Frame in canvas
+    frm = Frame(cnv, height=900, width=1500)
+
+    ## This puts the frame in the canvas's scrollable zone
+    cnv.create_window(0, 0, window=frm, anchor='nw')
+
+    ## Frame contents
+    Label(frm, font=headerfont, text="Player Name").grid(row=0, column=0)
+    Label(frm, font=headerfont, text="Overall Rating").grid(row=0, column=1)
     row_iter = 1
     for player in freeagents:
-        Label(canvas, text=player.fullname).grid(row=row_iter, column=0)
-        Label(canvas, text=player.rating).grid(row=row_iter, column=1)
-        Button(canvas, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=2)
+        Label(frm, text=player.fullname).grid(row=row_iter, column=0)
+        Label(frm, text=player.rating).grid(row=row_iter, column=1)
+        Button(frm, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=2)
         row_iter += 1
+
+    ## Update display to get correct dimensions
+    frm.update_idletasks()
+
+    ## Configure size of canvas's scrollable zone
+    cnv.configure(scrollregion=(0, 0, frm.winfo_width(), frm.winfo_height()))
+
+
+
+
+
+    # for player in freeagents:
+    #     # Label(newframe, text=player.fullname).pack()
+    #     # Label(mainbox, text=player.rating).grid(row=row_iter, column=1)
+    #     # Button(mainbox, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=2)
+    #     row_iter += 1
+
 
 
 def pickteams(x):
@@ -787,6 +931,9 @@ def begingame(team):
 
 
 def drawmenubar():
+
+    # ROW 1 BUTTONS
+
     Button(controlbar, text="New League", command=newleaguebutton).grid(row=0, column=0, padx=3)
 
     Button(controlbar, text="Play Full Season", command=playseason).grid(row=0, column=1, padx=3)
@@ -794,6 +941,12 @@ def drawmenubar():
     Button(controlbar, text="League Standings", command=leaguestandings).grid(row=0, column=2, padx=3)
 
     Button(controlbar, text="Player Stats", command=playerstats).grid(row=0, column=3, padx=3)
+
+    Button(controlbar, text="Play Random Game", command=play_random_game).grid(row=0, column=4, padx=2, pady=2)
+
+    Button(controlbar, text="TEST BUTTON", command=build_season_calendar).grid(row=0, column=5, padx=2, pady=2)
+
+    # ROW 2 BUTTONS
 
     Button(controlbar, text="View Roster", command=lambda: show_owner_team_roster(theowner.team)).grid(row=1, column=0, padx=2, pady=2)
 
@@ -812,17 +965,24 @@ def drawmenubar():
 ### GAME TITLE
 
 titlefont = font.Font(family='Century Gothic', size=24, weight='bold')
+headerfont = font.Font(family='Century Gothic', size=14, weight='bold')
 
 Label(root, text="GENETIC DODGEBALL", font=titlefont, width=60).pack(side=TOP)
 
-controlbar = Frame(root, width=150, background="navy", height=20)
+statusbar = Frame(root, width=1900, background="green", height=20)
+date_box = Label(statusbar, text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
+
+date_box.pack()
+statusbar.pack(side=TOP)
+
+controlbar = Frame(root, width=1900, background="navy", height=20)
 controlbar.pack(side=TOP)
 
 
 ### spacer frame ###
-Frame(root, height="20").pack(side=TOP)
+Frame(root, height=20).pack(side=TOP)
 
-mainbox = Frame(root, width=1900)
+mainbox = Frame(root, width=1900, height=800)
 mainbox.pack(side=TOP)
 
 
