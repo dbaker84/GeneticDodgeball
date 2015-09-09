@@ -229,6 +229,8 @@ class City:
         self.loyalty = loyalty
         self.avg_income = avg_income
 
+        self.stadium = None
+
         self.appeal = int(self.unique_factor * self.fans * self.rabidity * self.loyalty * self.avg_income)
 
     def recalc_city(self):
@@ -1254,7 +1256,6 @@ def new_play_game(team1, team2):
                 matchplayers.remove(player)
 
         first_turn = False
-
                 
     if home.playersleft() == 0:
         text2.insert(END, "-- Visitors Win --\n")
