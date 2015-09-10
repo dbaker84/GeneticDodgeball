@@ -541,15 +541,19 @@ def manage_add_player(player):
 
 def addplayer(player, team):
     player.team = team
+    player.starter = False
     team.roster.append(freeagents.pop(freeagents.index(player)))
+
 
 def manage_bench_player(player):
     player.starter = False
     manage_owner_team_roster(theowner.team)
 
+
 def manage_start_player(player):
     player.starter = True
     manage_owner_team_roster(theowner.team)
+
 
 def newleaguebutton():
     for child in mainbox.winfo_children():
@@ -579,6 +583,7 @@ def playseason():
 
 def next_day():
     pass
+
 
 def build_season_calendar(year=global_date.year):
     # week schedule
@@ -618,6 +623,7 @@ def calc_team_mgmt_eff(teams):
         effs.append((team.offrating() + team.defrating()) / team.salary())
 
     return statistics.mean(effs)
+
 
 def calc_team_win_eff(teams):
     effs = []
@@ -809,7 +815,6 @@ def manage_owner_team_roster(team):
     tempframe.pack(side=LEFT)
 
 
-
 def manage_owner_team_staff(team):
     for child in mainbox.winfo_children():
         child.destroy()
@@ -843,8 +848,6 @@ def manage_owner_team_staff(team):
     row_iter += 1
     
     tempframe.pack(side=LEFT)
-
-
 
 
 def manage_free_agents():
@@ -886,17 +889,6 @@ def manage_free_agents():
 
     ## Configure size of canvas's scrollable zone
     cnv.configure(scrollregion=(0, 0, frm.winfo_width(), frm.winfo_height()))
-
-
-
-
-
-    # for player in freeagents:
-    #     # Label(newframe, text=player.fullname).pack()
-    #     # Label(mainbox, text=player.rating).grid(row=row_iter, column=1)
-    #     # Button(mainbox, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=2)
-    #     row_iter += 1
-
 
 
 def pickteams(x):
@@ -999,7 +991,6 @@ mainbox.pack(side=TOP)
 newleaguebutton()
 
 
-
 def updatestats(team):
     team.winpercent()
     team.alltime_winpercent()
@@ -1015,9 +1006,6 @@ def sort_by_winpercentage():
 
     teams.sort(key=lambda x: x.winpercentage, reverse=True)
     # teams.sort(winpercentage, reverse=True)
-
-
-
 
 
 def play_game(team1, team2):
@@ -1149,6 +1137,7 @@ def play_game(team1, team2):
             text2.insert(END, y.fullname + "\n")
         else:
             y.ingame = True
+
 
 def new_play_game(team1, team2):
     for child in mainbox.winfo_children():
@@ -1332,8 +1321,10 @@ def throw(thrower, defender):
 def varyby(stat):
     return random.uniform(1 - ((100 - stat) / 100), 1 + ((100 - stat) / 100))
 
+
 def getgauss(a, b):
     return random.gauss(a, math.sqrt(100-b) * 1.5)
+
 
 def calcdev(x):
     return math.sqrt(101-x)
