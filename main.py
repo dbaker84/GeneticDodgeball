@@ -19,9 +19,23 @@ from tkinter import font
 
 
 root = Tk()
-root.geometry("1600x900")
+root.geometry("1200x900")
 root.wm_title("Genetic Dodgeball")
-root.resizable(width=FALSE, height=FALSE)
+# root.resizable(width=FALSE, height=FALSE)
+root.configure(bg="LightSteelBlue1")
+
+
+def hello():
+    pass
+
+
+
+
+titlefont = font.Font(family='Century Gothic', size=24, weight='bold')
+headerfont = font.Font(family='Century Gothic', size=12, weight='bold')
+
+titleframe = Frame(root, bg="Black", width=1200)
+titlelabel = Label(titleframe, text="GENETIC DODGEBALL", fg="white", bg="black", font=titlefont, width=60).pack(side=TOP)
 
 
 freeagents = []
@@ -45,10 +59,10 @@ calendars = []
 posfactor = 4
 divfactor = 4.5
 negfactor = 20
-salaryfactor = 4
+salaryfactor = 40
 
 # staff constants
-staffsalary = 1000
+staffsalary = 10000
 doctorfactor = 5.0
 trainerfactor = 3.0
 scoutfactor = 3.0
@@ -240,10 +254,10 @@ class City:
 class Player:
     def __init__(self, name, number, genome):
         holder = name.split()
-        self.formalname = name
+        self.formalname = name  # first last without nickname
         self.firstname = holder[0]
         self.lastname = holder[1]
-        self.fullname = name
+        self.fullname = name  # first 'nickname' last
         self.number = number
         self.nickname = None
 
@@ -255,10 +269,13 @@ class Player:
 
         # all players start alive
         self.alive = True
-        self.ingame = True
-        self.team = False
-        self.starter = True
 
+        self.ingame = True
+        self.team = None
+        self.starter = False
+
+        # used during gameplay
+        self.hasball = False
         self.ticker = 0
 
         self.offhate = random.randrange(1, 100)
@@ -541,7 +558,7 @@ def manage_add_player(player):
 
 def addplayer(player, team):
     player.team = team
-    player.starter = False
+    player.starter = True
     team.roster.append(freeagents.pop(freeagents.index(player)))
 
 
@@ -562,7 +579,7 @@ def newleaguebutton():
     # for child in controlbar.winfo_children():
     #     child.destroy()
 
-    newplayers(500)
+    newplayers(200)
     gen_newstaff(50)
     newteams(12)
     pickyourteam()
@@ -576,7 +593,7 @@ def playseason():
     for i in range(0, len(teams)):
         for j in range(0, len(teams)):
             if i != j:
-                play_game(teams[i], teams[j])
+                new_play_game(teams[i], teams[j])
 
     leaguestandings()
 
@@ -609,7 +626,7 @@ def leaguestandings():
     for child in mainbox.winfo_children():
         child.destroy()
 
-    tempframe = Frame(mainbox, width=1900)
+    tempframe = Frame(mainbox, width=1200)
     tempframe.pack()
 
     for i in teams:
@@ -737,7 +754,7 @@ def play_random_game():
     global_date.inc()
 
 
-def show_owner_team_roster(team):
+def show_team_roster(team):
     for child in mainbox.winfo_children():
         child.destroy()
 
@@ -745,10 +762,10 @@ def show_owner_team_roster(team):
 
     row_iter = 0
 
-    Label(tempframe, text="%s Roster" % theowner.team.fullname).grid(row=row_iter, columnspan=6)
+    Label(tempframe, text="%s Roster" % team.fullname).grid(row=row_iter, columnspan=6)
     row_iter += 1
 
-    Label(tempframe, text="Weekly Salary Cost: $%.2f" % theowner.team.salary()).grid(row=row_iter, columnspan=6)
+    Label(tempframe, text="Weekly Salary Cost: $%.2f" % team.salary()).grid(row=row_iter, columnspan=6)
     row_iter += 1
 
     Label(tempframe, text="Name").grid(row=row_iter, column=0)
@@ -860,7 +877,7 @@ def manage_free_agents():
     mainbox.grid_columnconfigure(0, weight=1)
 
     # Canvas
-    cnv = Canvas(mainbox, height=900, width=1500)
+    cnv = Canvas(mainbox, height=800, width=900)
     cnv.grid(row=0, column=0, sticky='nswe')
 
     ## Scrollbars for canvas
@@ -869,19 +886,34 @@ def manage_free_agents():
     cnv.configure(yscrollcommand=vScroll.set)
 
     ## Frame in canvas
-    frm = Frame(cnv, height=900, width=1500)
+    frm = Frame(cnv, height=800, width=900)
 
     ## This puts the frame in the canvas's scrollable zone
     cnv.create_window(0, 0, window=frm, anchor='nw')
 
     ## Frame contents
-    Label(frm, font=headerfont, text="Player Name").grid(row=0, column=0)
-    Label(frm, font=headerfont, text="Overall Rating").grid(row=0, column=1)
+
+    nameheader = Frame(frm)
+    Label(nameheader, font=headerfont, text="Player Name").grid(row=0, column=0)
+    Button(nameheader, font=headerfont, text=u"\u21C3", relief=FLAT, command=lambda x=True: sort_freeagents_by_name(x)).grid(row=0, column=1)
+    Button(nameheader, font=headerfont, text=u"\u21BE", relief=FLAT, command=lambda x=False: sort_freeagents_by_name(x)).grid(row=0, column=2)
+    nameheader.grid(row=0, column=0)
+
+    salaryheader = Frame(frm)
+    Label(salaryheader, font=headerfont, text="Salary").grid(row=0, column=0)
+    Button(salaryheader, font=headerfont, text=u"\u25B2", relief=FLAT, command=lambda x=True: sort_freeagents_by_salary(x)).grid(row=0, column=1)
+    Button(salaryheader, font=headerfont, text=u"\u25BC", relief=FLAT, command=lambda x=False: sort_freeagents_by_salary(x)).grid(row=0, column=2)
+    salaryheader.grid(row=0, column=1)
+
+    Label(frm, font=headerfont, text="Offense").grid(row=0, column=2)
+    Label(frm, font=headerfont, text="Defense").grid(row=0, column=3)
     row_iter = 1
     for player in freeagents:
         Label(frm, text=player.fullname).grid(row=row_iter, column=0)
-        Label(frm, text=player.rating).grid(row=row_iter, column=1)
-        Button(frm, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=2)
+        Label(frm, text=player.salary).grid(row=row_iter, column=1)
+        Label(frm, text=player.offense).grid(row=row_iter, column=2)
+        Label(frm, text=player.defense).grid(row=row_iter, column=3)
+        Button(frm, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=4)
         row_iter += 1
 
     ## Update display to get correct dimensions
@@ -890,6 +922,20 @@ def manage_free_agents():
     ## Configure size of canvas's scrollable zone
     cnv.configure(scrollregion=(0, 0, frm.winfo_width(), frm.winfo_height()))
 
+
+def sort_freeagents_by_name(x):
+    if x:
+        freeagents.sort(key=lambda x: x.lastname, reverse=False)
+    else:
+        freeagents.sort(key=lambda x: x.lastname, reverse=True)
+    manage_free_agents()
+
+def sort_freeagents_by_salary(x):
+    if x:
+        freeagents.sort(key=lambda x: x.salary, reverse=False)
+    else:
+        freeagents.sort(key=lambda x: x.salary, reverse=True)
+    manage_free_agents()
 
 def pickteams(x):
     i = 0
@@ -926,69 +972,10 @@ def begingame(team):
     for child in mainbox.winfo_children():
         child.destroy()
 
-    drawmenubar()
-    # name = get_player_name.get()
+    root.config(menu=menubar)
     theowner.team = team
     Label(mainbox, text="You are now the owner of the %s" % theowner.team.fullname).grid(row=0, column=0)
-
-
-def drawmenubar():
-
-    # ROW 1 BUTTONS
-
-    Button(controlbar, text="New League", command=newleaguebutton).grid(row=0, column=0, padx=3)
-
-    Button(controlbar, text="Play Full Season", command=playseason).grid(row=0, column=1, padx=3)
-
-    Button(controlbar, text="League Standings", command=leaguestandings).grid(row=0, column=2, padx=3)
-
-    Button(controlbar, text="Player Stats", command=playerstats).grid(row=0, column=3, padx=3)
-
-    Button(controlbar, text="Play Random Game", command=play_random_game).grid(row=0, column=4, padx=2, pady=2)
-
-    Button(controlbar, text="TEST BUTTON", command=build_season_calendar).grid(row=0, column=5, padx=2, pady=2)
-
-    # ROW 2 BUTTONS
-
-    Button(controlbar, text="View Roster", command=lambda: show_owner_team_roster(theowner.team)).grid(row=1, column=0, padx=2, pady=2)
-
-    Button(controlbar, text="Manage Roster", command=lambda: manage_owner_team_roster(theowner.team)).grid(row=1, column=1, padx=2, pady=2)
-
-    Button(controlbar, text="Manage Staff", command=lambda: manage_owner_team_staff(theowner.team)).grid(row=1, column=2, padx=2, pady=2)
-
-    Button(controlbar, text="Free Agents", command=lambda: manage_free_agents()).grid(row=1, column=3, padx=2, pady=2)
-
-    Button(controlbar, text="League Team Data", command=lambda: league_team_data()).grid(row=1, column=4, padx=2, pady=2)
-
-
-
-### DRAW THE INTERFACE FRAMES ###
-
-### GAME TITLE
-
-titlefont = font.Font(family='Century Gothic', size=24, weight='bold')
-headerfont = font.Font(family='Century Gothic', size=14, weight='bold')
-
-Label(root, text="GENETIC DODGEBALL", font=titlefont, width=60).pack(side=TOP)
-
-statusbar = Frame(root, width=1900, background="green", height=20)
-date_box = Label(statusbar, text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
-
-date_box.pack()
-statusbar.pack(side=TOP)
-
-controlbar = Frame(root, width=1900, background="navy", height=20)
-controlbar.pack(side=TOP)
-
-
-### spacer frame ###
-Frame(root, height=20).pack(side=TOP)
-
-mainbox = Frame(root, width=1900, height=800)
-mainbox.pack(side=TOP)
-
-
-newleaguebutton()
+    # date_box.config(text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
 
 
 def updatestats(team):
@@ -1006,137 +993,6 @@ def sort_by_winpercentage():
 
     teams.sort(key=lambda x: x.winpercentage, reverse=True)
     # teams.sort(winpercentage, reverse=True)
-
-
-def play_game(team1, team2):
-    for child in mainbox.winfo_children():
-        child.destroy()
-
-    # tempframe = Frame(mainbox)
-    # tempframe.pack()
-
-    # text2 = Text(mainbox, height=40, width=60)
-    # scroll = Scrollbar(mainbox, command=text2.yview)
-    # text2.configure(yscrollcommand=scroll.set)
-    # text2.pack(side=LEFT)
-    # scroll.pack(side=RIGHT, fill=Y)
-
-    text2 = Text(mainbox)
-    scroll = Scrollbar(mainbox, command=text2.yview)
-    text2.configure(yscrollcommand=scroll.set)
-    text2.pack(side=LEFT)
-    scroll.pack(side=RIGHT, fill=Y)
-
-    home = team1
-    visitor = team2
-
-    teams_in_match = [team1, team2]
-
-    text2.insert(END, "%s [%soff %sdef] vs. %s [%soff %sdef]\n" % (home.fullname, home.offrating(), home.defrating(),
-                                                                   visitor.fullname, visitor.offrating(), visitor.defrating()))
-    text2.insert(END, "- Home -\n")
-    for y in home.roster:
-        text2.insert(END, y.fullname + "\n")
-    text2.insert(END, "- Visitors -\n")
-    for y in visitor.roster:
-        text2.insert(END, y.fullname + "\n")
-
-    text2.insert(END, "Start Game!\n")
-
-    # check to make sure no team is depleted to 0 available players
-    while home.playersleft() > 0 and visitor.playersleft() > 0:
-        for x in home.roster:
-            if x.ingame:
-                target = selecttarget(x, visitor)
-                if not target:
-                    break
-                result = throw(x, target)
-                x.career_throws += 1
-                if result == "unawarehit":
-                    text2.insert(END, "%s sees that %s unaware and hits him!\n" % (x.fullname, target.fullname))
-                    target.career_blindsided += 1
-                    x.career_hits += 1
-                    target.ingame = False
-                if result == "catchfail":
-                    text2.insert(END, "%s tries to catch a throw by %s but can't hold on!\n" % (target.fullname, x.fullname))
-                    target.career_catch_fail += 1
-                    x.career_hits += 1
-                    target.ingame = False
-                if result == "dodgefail":
-                    text2.insert(END, "%s fails to dodge a throw by %s!\n" % (target.fullname, x.fullname))
-                    target.career_dodge_fail += 1
-                    x.career_hits += 1
-                    target.ingame = False
-                if result == "catch":
-                    text2.insert(END, "%s's throw is caught by %s!\n" % (x.fullname, target.fullname))
-                    target.career_catch_succ += 1
-                    x.career_wascaught += 1
-                    x.ingame = False
-                if result == "dodge":
-                    text2.insert(END, "%s dodges a throw by %s!\n" % (target.fullname, x.fullname))
-                    target.career_dodge_succ += 1
-                    x.career_wasdodged += 1
-        text2.insert(END, "-- Switch Sides --\n")
-        for x in visitor.roster:
-            if x.ingame:
-                target = selecttarget(x, home)
-                if not target:
-                    break
-                result = throw(x, target)
-                x.career_throws += 1
-                if result == "unawarehit":
-                    text2.insert(END, "%s sees that %s unaware and hits him!\n" % (x.fullname, target.fullname))
-                    target.career_blindsided += 1
-                    x.career_hits += 1
-                    target.ingame = False
-                if result == "catchfail":
-                    text2.insert(END, "%s tries to catch a throw by %s but can't hold on!\n" % (target.fullname, x.fullname))
-                    target.career_catch_fail += 1
-                    x.career_hits += 1
-                    target.ingame = False
-                if result == "dodgefail":
-                    text2.insert(END, "%s fails to dodge a throw by %s!\n" % (target.fullname, x.fullname))
-                    target.career_dodge_fail += 1
-                    x.career_hits += 1
-                    target.ingame = False
-                if result == "catch":
-                    text2.insert(END, "%s's throw is caught by %s!\n" % (x.fullname, target.fullname))
-                    target.career_catch_succ += 1
-                    x.career_wascaught += 1
-                    x.ingame = False
-                if result == "dodge":
-                    text2.insert(END, "%s dodges a throw by %s!\n" % (target.fullname, x.fullname))
-                    target.career_dodge_succ += 1
-                    x.career_wasdodged += 1
-        text2.insert(END, "-- End of Round --\n")
-
-    if home.playersleft() == 0:
-        text2.insert(END, "-- Visitors Win --\n")
-        visitor.win()
-        home.loss()
-    else:
-        text2.insert(END, "-- Home Wins --\n")
-        home.win()
-        visitor.loss()
-
-    updatestats(home)
-    updatestats(visitor)
-
-    text2.insert(END, "-- Remaining Players --\n")
-
-    text2.insert(END, "- Home -\n")
-    for y in home.roster:
-        if y.ingame:
-            text2.insert(END, y.fullname + "\n")
-        else:
-            y.ingame = True
-
-    text2.insert(END, "- Visitors -\n")
-    for y in visitor.roster:
-        if y.ingame:
-            text2.insert(END, y.fullname + "\n")
-        else:
-            y.ingame = True
 
 
 def new_play_game(team1, team2):
@@ -1161,7 +1017,14 @@ def new_play_game(team1, team2):
     home = team1
     visitor = team2
 
-    # teams_in_match = [team1, team2]
+    b_home = 0
+    b_visitor = 0
+    b_mid = random.randint(1, 5)  # starting balls
+
+    teams_in_match = [team1, team2]
+
+    text2.insert(END, "LIVE FROM %s\n\n" % home.city.name.upper())
+    text2.insert(END, "GDN presents a classic %s ball single-elimination game\n" % b_mid)
 
     text2.insert(END, "%s [%soff %sdef] vs. %s [%soff %sdef]\n" % (home.fullname, home.offrating(), home.defrating(),
                                                                    visitor.fullname, visitor.offrating(), visitor.defrating()))
@@ -1178,7 +1041,6 @@ def new_play_game(team1, team2):
 
     for player in matchplayers:
         player.turn_reset()
-        print(player.ticker)
 
     matchplayers.sort(key=lambda x: x.ticker)
 
@@ -1201,8 +1063,7 @@ def new_play_game(team1, team2):
             player.turn_dec(amt)
 
         # let fastest player take turn
-        print()
-        text2.insert(END, "[%s (%s) of the %s]\n" % (matchplayers[0].fullname, matchplayers[0].speed, matchplayers[0].team.name))
+        # text2.insert(END, "[%s (%s) of the %s]\n" % (matchplayers[0].fullname, matchplayers[0].speed, matchplayers[0].team.name))
 
         # select target
 
@@ -1212,33 +1073,60 @@ def new_play_game(team1, team2):
             target = selecttarget(matchplayers[0], home)
         if not target:
             break
-        result = throw(matchplayers[0], target)
-        matchplayers[0].career_throws += 1
-        if result == "unawarehit":
-            text2.insert(END, "%s sees that %s unaware and hits him!\n" % (matchplayers[0].fullname, target.fullname))
-            target.career_blindsided += 1
-            matchplayers[0].career_hits += 1
-            target.ingame = False
-        if result == "catchfail":
-            text2.insert(END, "%s tries to catch a throw by %s but can't hold on!\n" % (target.fullname, matchplayers[0].fullname))
-            target.career_catch_fail += 1
-            matchplayers[0].career_hits += 1
-            target.ingame = False
-        if result == "dodgefail":
-            text2.insert(END, "%s fails to dodge a throw by %s!\n" % (target.fullname, matchplayers[0].fullname))
-            target.career_dodge_fail += 1
-            matchplayers[0].career_hits += 1
-            target.ingame = False
-        if result == "catch":
-            text2.insert(END, "%s's throw is caught by %s!\n" % (matchplayers[0].fullname, target.fullname))
-            target.career_catch_succ += 1
-            matchplayers[0].career_wascaught += 1
-            matchplayers[0].ingame = False
-        if result == "dodge":
-            text2.insert(END, "%s dodges a throw by %s!\n" % (target.fullname, matchplayers[0].fullname))
-            target.career_dodge_succ += 1
-            matchplayers[0].career_wasdodged += 1
 
+        if matchplayers[0].hasball:     # the player has a ball in hand
+            # throw the ball
+            result = throw(matchplayers[0], target)
+            matchplayers[0].hasball = False
+            matchplayers[0].career_throws += 1
+            if result == "unawarehit":
+                target.career_blindsided += 1
+                matchplayers[0].career_hits += 1
+                target.ingame = False
+                if target.hasball:      # if they were holding a ball, return it as they are out
+                    b_mid += 1
+                b_mid += 1
+                text2.insert(END, "%s sees that %s unaware and hits him!\n" % (matchplayers[0].fullname, target.fullname))
+            if result == "catchfail":
+                target.career_catch_fail += 1
+                matchplayers[0].career_hits += 1
+                target.ingame = False
+                if target.hasball:      # if they were holding a ball, return it as they are out
+                    b_mid += 1
+                b_mid += 1
+                text2.insert(END, "%s tries to catch a throw by %s but can't hold on!\n" % (target.fullname, matchplayers[0].fullname))
+            if result == "dodgefail":
+                target.career_dodge_fail += 1
+                matchplayers[0].career_hits += 1
+                target.ingame = False
+                if target.hasball:      # if they were holding a ball, return it as they are out
+                    b_mid += 1
+                b_mid += 1
+                text2.insert(END, "%s fails to dodge a throw by %s!\n" % (target.fullname, matchplayers[0].fullname))
+            if result == "catch":
+                target.career_catch_succ += 1
+                if target.hasball:
+                    b_mid += 1
+                else:
+                    target.hasball = True
+                matchplayers[0].career_wascaught += 1
+                matchplayers[0].ingame = False
+                text2.insert(END, "%s's throw is caught by %s!\n" % (matchplayers[0].fullname, target.fullname))
+            if result == "dodge":
+                b_mid += 1
+                target.career_dodge_succ += 1
+                matchplayers[0].career_wasdodged += 1
+                text2.insert(END, "%s dodges a throw by %s!\n" % (target.fullname, matchplayers[0].fullname))
+
+        else:       # player doesn't have a ball
+            if b_mid > 0:
+                b_mid -= 1
+                matchplayers[0].hasball = True
+                text2.insert(END, "%s picks up a ball from the arena floor\n" % matchplayers[0].fullname)
+            else:
+                pass        # doesn't do anything yet
+
+        # WRAP UP TURN
         # cleanup out players
         for player in matchplayers:
             if not player.ingame:
@@ -1273,6 +1161,12 @@ def new_play_game(team1, team2):
             text2.insert(END, y.fullname + "\n")
         else:
             y.ingame = True
+
+    ## CLEANUP BEFORE RELEASING TEAMS
+    for player in home.roster:
+        player.hasball = False
+    for player in visitor.roster:
+        player.hasball = False
 
 
 def selecttarget(thrower, opponents):
@@ -1329,7 +1223,74 @@ def getgauss(a, b):
 def calcdev(x):
     return math.sqrt(101-x)
 
+def test():
+    root.config(menu=blankbar)
+
+### DRAW THE INTERFACE FRAMES ###
+
+### GAME TITLE
 
 
-root.wm_state('zoomed')
+
+titleframe.pack(side=TOP)
+
+statusbar = Frame(root, width=1200, background="green", height=20)
+date_box = Label(statusbar, text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
+
+date_box.pack()
+statusbar.pack(side=TOP)
+
+
+### spacer frame ###
+Frame(root, height=20).pack(side=TOP)
+
+mainbox = Frame(root, width=1200, height=800)
+mainbox.pack(side=TOP)
+
+menubar = Menu(root)
+blankbar = Menu(root)
+
+
+systemmenu = Menu(menubar, tearoff=0)
+systemmenu.add_command(label="Save", command=hello)
+systemmenu.add_separator()
+systemmenu.add_command(label="Exit", command=root.quit)
+menubar.add_cascade(label="System", menu=systemmenu)
+
+teammenu = Menu(menubar, tearoff=0)
+teammenu.add_command(label="Roster Management", command=lambda: manage_owner_team_roster(theowner.team))
+teammenu.add_command(label="Staff Management", command=lambda: manage_owner_team_staff(theowner.team))
+teammenu.add_command(label="Team Summary", command=lambda: show_team_roster(theowner.team))
+teammenu.add_separator()
+teammenu.add_command(label="Free Agents", command=lambda: manage_free_agents())
+teammenu.add_command(label="Available Staff", command=lambda: manage_owner_team_staff(theowner.team))
+menubar.add_cascade(label="Team Management", menu=teammenu)
+
+opsmenu = Menu(menubar, tearoff=0)
+opsmenu.add_command(label="Stadium", command=lambda: manage_owner_team_roster(theowner.team))
+opsmenu.add_command(label="Facilities", command=lambda: manage_owner_team_staff(theowner.team))
+opsmenu.add_command(label="City", command=hello)
+opsmenu.add_separator()
+opsmenu.add_command(label="Budget", command=lambda: manage_free_agents())
+opsmenu.add_command(label="Marketing", command=lambda: manage_owner_team_staff(theowner.team))
+menubar.add_cascade(label="Operations Management", menu=opsmenu)
+
+calmenu = Menu(menubar, tearoff=0)
+calmenu.add_command(label="Play Season", command=playseason)
+calmenu.add_command(label="Play Random Game", command=play_random_game)
+menubar.add_cascade(label="Calendar", menu=calmenu)
+
+statmenu = Menu(menubar, tearoff=0)
+statmenu.add_command(label="League Standings", command=leaguestandings)
+statmenu.add_command(label="Season Stats", command=playerstats)
+statmenu.add_command(label="League Team Data", command=league_team_data)
+menubar.add_cascade(label="Statistics", menu=statmenu)
+
+helpmenu = Menu(menubar, tearoff=0)
+helpmenu.add_command(label="Wiki", command=hello)
+menubar.add_cascade(label="Help", menu=helpmenu)
+
+
+newleaguebutton()
+
 root.mainloop()
