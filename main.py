@@ -35,7 +35,7 @@ titlefont = font.Font(family='Century Gothic', size=24, weight='bold')
 headerfont = font.Font(family='Century Gothic', size=12, weight='bold')
 
 titleframe = Frame(root, bg="Black", width=1200)
-titlelabel = Label(titleframe, text="GENETIC DODGEBALL", fg="white", bg="black", font=titlefont, width=60).pack(side=TOP)
+titlelabel = Label(titleframe, text="GENETIC DODGEBALL", fg="white", bg="black", font=titlefont, width=1200).pack(side=TOP)
 
 
 freeagents = []
@@ -132,7 +132,7 @@ class Date:
             self.week += 1
             self.day %= 7
 
-        date_box.config(text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
+        date_label.config(text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
 global_date = Date(1, 1, 2000 + int(random.uniform(100, 20)))
 
 class Matchup:
@@ -580,6 +580,7 @@ def newleaguebutton():
     #     child.destroy()
 
     newplayers(200)
+    sort_freeagents_by_name(True)
     gen_newstaff(50)
     newteams(12)
     pickyourteam()
@@ -867,14 +868,25 @@ def manage_owner_team_staff(team):
     tempframe.pack(side=LEFT)
 
 
+def dashboard():
+    for child in mainbox.winfo_children():
+        child.destroy()
+
+    Frame(mainbox, height=30, width=1200).grid(column=0, row=0, columnspan=2)
+    Frame(mainbox, bg="red", height=300, width=300).grid(column=0, row=1, sticky='e')
+    Frame(mainbox, bg="blue", height=300, width=300).grid(column=0, row=2, sticky='e')
+    Frame(mainbox, bg="green", height=300, width=300).grid(column=1, row=1, sticky='w')
+    Frame(mainbox, bg="yellow", height=300, width=300).grid(column=1, row=2, sticky='w')
+
+
 def manage_free_agents():
     for child in mainbox.winfo_children():
         child.destroy()
 
     # Main window
     # Grid sizing behavior in window
-    mainbox.grid_rowconfigure(0, weight=1)
-    mainbox.grid_columnconfigure(0, weight=1)
+    # mainbox.grid_rowconfigure(0, weight=1)
+    # mainbox.grid_columnconfigure(0, weight=1)
 
     # Canvas
     cnv = Canvas(mainbox, height=800, width=900)
@@ -972,10 +984,11 @@ def begingame(team):
     for child in mainbox.winfo_children():
         child.destroy()
 
-    root.config(menu=menubar)
+
     theowner.team = team
     Label(mainbox, text="You are now the owner of the %s" % theowner.team.fullname).grid(row=0, column=0)
-    # date_box.config(text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
+    # date_label.config(text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
+    dashboard()
 
 
 def updatestats(team):
@@ -1234,15 +1247,13 @@ def test():
 
 titleframe.pack(side=TOP)
 
-statusbar = Frame(root, width=1200, background="green", height=20)
-date_box = Label(statusbar, text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
+statusbar1 = Frame(root, width=1200, background="green", height=20)
+statusbar2 = Frame(root, width=1200, background="green", height=20)
+date_label = Label(statusbar1, width=1200, background="green", text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
 
-date_box.pack()
-statusbar.pack(side=TOP)
-
-
-### spacer frame ###
-Frame(root, height=20).pack(side=TOP)
+date_label.pack()
+statusbar1.pack(side=TOP)
+statusbar2.pack(side=TOP)
 
 mainbox = Frame(root, width=1200, height=800)
 mainbox.pack(side=TOP)
@@ -1290,7 +1301,7 @@ helpmenu = Menu(menubar, tearoff=0)
 helpmenu.add_command(label="Wiki", command=hello)
 menubar.add_cascade(label="Help", menu=helpmenu)
 
-
+root.config(menu=menubar)
 newleaguebutton()
 
 root.mainloop()
