@@ -15,6 +15,7 @@ import statistics
 import operator
 import math
 import csv
+import xxhash
 from tkinter import font
 
 
@@ -67,6 +68,8 @@ doctorfactor = 5.0
 trainerfactor = 3.0
 scoutfactor = 3.0
 
+scoutcost = 1000
+
 # END BEHAVIOR CONSTANTS
 
 
@@ -76,6 +79,8 @@ skills = ["dodge", "catch", "tpower", "taccuracy", "stamina", "tricky", "awarene
           "charisma", "unused", "patience", "ethics", "winner"]
 
 stats = []
+
+exempt_from_scouting = ["lastname", "salary"]
 
 stronggenes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'W', 'X', 'Y', 'Z']
 weakgenes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'W', 'X', 'Y', 'Z']
@@ -269,6 +274,9 @@ class Player:
 
         # all players start alive
         self.alive = True
+        self.scouted = False  # Does player know off, def, int, pers stats
+        self.detailed = False  # Does player have details of specific stats?
+        self.sortstat = 0   # for sorting by perceived value instead of true value
 
         self.ingame = True
         self.team = None
@@ -319,8 +327,14 @@ class Player:
     def targetvalue(self, thrower):
         x = ((self.offense * thrower.offhate) + (self.defense * thrower.defhate) +
              (self.intangibles * thrower.inthate) + (self.personality * thrower.pershate)) * varyby(thrower.tactics)
-
         return x
+
+    def calc_scouted(self, attr):
+        att = operator.attrgetter(attr)
+        if attr in exempt_from_scouting:
+            return att(self)
+        else:
+            return scoutedstat(self, att(self), theowner.team)
 
 
 class Staff:
@@ -548,6 +562,7 @@ def remplayer(player):
 
 def manage_drop_player(player):
     remplayer(player)
+    sort_freeagents("lastname", True, False)
     manage_owner_team_roster(theowner.team)
 
 
@@ -580,7 +595,7 @@ def newleaguebutton():
     #     child.destroy()
 
     newplayers(200)
-    sort_freeagents_by_name(True)
+    # sort_freeagents("lastname", False, False)
     gen_newstaff(50)
     newteams(12)
     pickyourteam()
@@ -775,6 +790,7 @@ def show_team_roster(team):
     Label(tempframe, text="Intangibles").grid(row=row_iter, column=3)
     Label(tempframe, text="Personality").grid(row=row_iter, column=4)
     Label(tempframe, text="TOTAL").grid(row=row_iter, column=5)
+    Label(tempframe, text="Scouted Total %s" % theowner.team.scout.ability).grid(row=row_iter, column=6)
     row_iter += 1
 
     for player in team.roster:
@@ -784,6 +800,7 @@ def show_team_roster(team):
         Label(tempframe, text=player.intangibles).grid(row=row_iter, column=3)
         Label(tempframe, text=player.personality).grid(row=row_iter, column=4)
         Label(tempframe, text=player.rating).grid(row=row_iter, column=5)
+        Label(tempframe, text=int(player.rating * scout_factor(player, theowner.team))).grid(row=row_iter, column=6)
         row_iter += 1
 
     tempframe.pack()
@@ -907,24 +924,34 @@ def manage_free_agents():
 
     nameheader = Frame(frm)
     Label(nameheader, font=headerfont, text="Player Name").grid(row=0, column=0)
-    Button(nameheader, font=headerfont, text=u"\u21C3", relief=FLAT, command=lambda x=True: sort_freeagents_by_name(x)).grid(row=0, column=1)
-    Button(nameheader, font=headerfont, text=u"\u21BE", relief=FLAT, command=lambda x=False: sort_freeagents_by_name(x)).grid(row=0, column=2)
+    Button(nameheader, font=headerfont, text=u"\u25B2", relief=FLAT, command=lambda x=True: sort_freeagents("lastname", x)).grid(row=0, column=1)
+    Button(nameheader, font=headerfont, text=u"\u25BC", relief=FLAT, command=lambda x=False: sort_freeagents("lastname", x)).grid(row=0, column=2)
     nameheader.grid(row=0, column=0)
 
     salaryheader = Frame(frm)
     Label(salaryheader, font=headerfont, text="Salary").grid(row=0, column=0)
-    Button(salaryheader, font=headerfont, text=u"\u25B2", relief=FLAT, command=lambda x=True: sort_freeagents_by_salary(x)).grid(row=0, column=1)
-    Button(salaryheader, font=headerfont, text=u"\u25BC", relief=FLAT, command=lambda x=False: sort_freeagents_by_salary(x)).grid(row=0, column=2)
+    Button(salaryheader, font=headerfont, text=u"\u25B2", relief=FLAT, command=lambda x=False: sort_freeagents("salary", x)).grid(row=0, column=1)
+    Button(salaryheader, font=headerfont, text=u"\u25BC", relief=FLAT, command=lambda x=True: sort_freeagents("salary", x)).grid(row=0, column=2)
     salaryheader.grid(row=0, column=1)
 
-    Label(frm, font=headerfont, text="Offense").grid(row=0, column=2)
-    Label(frm, font=headerfont, text="Defense").grid(row=0, column=3)
+    offenseheader = Frame(frm)
+    Label(offenseheader, font=headerfont, text="Offense").grid(row=0, column=0)
+    Button(offenseheader, font=headerfont, text=u"\u25B2", relief=FLAT, command=lambda x=False: sort_freeagents("offense", x)).grid(row=0, column=1)
+    Button(offenseheader, font=headerfont, text=u"\u25BC", relief=FLAT, command=lambda x=True: sort_freeagents("offense", x)).grid(row=0, column=2)
+    offenseheader.grid(row=0, column=2)
+
+    defenseheader = Frame(frm)
+    Label(defenseheader, font=headerfont, text="Defense").grid(row=0, column=0)
+    Button(defenseheader, font=headerfont, text=u"\u25B2", relief=FLAT, command=lambda x=False: sort_freeagents("defense", x)).grid(row=0, column=1)
+    Button(defenseheader, font=headerfont, text=u"\u25BC", relief=FLAT, command=lambda x=True: sort_freeagents("defense", x)).grid(row=0, column=2)
+    defenseheader.grid(row=0, column=3)
+
     row_iter = 1
     for player in freeagents:
         Label(frm, text=player.fullname).grid(row=row_iter, column=0)
         Label(frm, text=player.salary).grid(row=row_iter, column=1)
-        Label(frm, text=player.offense).grid(row=row_iter, column=2)
-        Label(frm, text=player.defense).grid(row=row_iter, column=3)
+        Label(frm, text=scoutedstat(player, player.offense)).grid(row=row_iter, column=2)
+        Label(frm, text=scoutedstat(player, player.defense)).grid(row=row_iter, column=3)
         Button(frm, text="Add %s" % player.fullname, width=25, command=lambda x=player: manage_add_player(x)).grid(row=row_iter, column=4)
         row_iter += 1
 
@@ -934,20 +961,16 @@ def manage_free_agents():
     ## Configure size of canvas's scrollable zone
     cnv.configure(scrollregion=(0, 0, frm.winfo_width(), frm.winfo_height()))
 
+# students.sort(key=operator.methodcaller("get_avg_grade"), reverse=False)
+# After f = methodcaller('name', 'foo', bar=1), the call f(b) returns b.name('foo', bar=1).
 
-def sort_freeagents_by_name(x):
-    if x:
-        freeagents.sort(key=lambda x: x.lastname, reverse=False)
-    else:
-        freeagents.sort(key=lambda x: x.lastname, reverse=True)
-    manage_free_agents()
+def sort_freeagents(attr, reverse=True, gotoagents=True):
+    freeagents.sort(key=lambda z: z.calc_scouted(attr), reverse=reverse)
+    # freeagents.sort(key=lambda z: z.sortstat, reverse=reverse)
+    freeagents.sort(key=lambda z: z.scouted, reverse=True)
+    if gotoagents:
+        manage_free_agents()
 
-def sort_freeagents_by_salary(x):
-    if x:
-        freeagents.sort(key=lambda x: x.salary, reverse=False)
-    else:
-        freeagents.sort(key=lambda x: x.salary, reverse=True)
-    manage_free_agents()
 
 def pickteams(x):
     i = 0
@@ -984,9 +1007,10 @@ def begingame(team):
     for child in mainbox.winfo_children():
         child.destroy()
 
-
     theowner.team = team
     Label(mainbox, text="You are now the owner of the %s" % theowner.team.fullname).grid(row=0, column=0)
+    for player in theowner.team.roster:
+        player.scouted = True
     # date_label.config(text="Week %s    Day %s    Year %s" % (global_date.week, global_date.day, global_date.year))
     dashboard()
 
@@ -1232,6 +1256,19 @@ def varyby(stat):
 def getgauss(a, b):
     return random.gauss(a, math.sqrt(100-b) * 1.5)
 
+def scout_factor(player, team):
+    return (((xxhash.xxh32(team.scout.fullname+player.formalname).intdigest() % 100) - 50)  * ((101 - team.scout.ability) / 100) + 100) / 100
+
+def scoutedstat(player, stat, team=False):
+    if not team:
+        team = theowner.team
+    if player.scouted:
+        return int(stat * scout_factor(player, team))
+    else:
+        return 0
+
+def scoutstat():
+    theowner.team.scout.ability = 99
 
 def calcdev(x):
     return math.sqrt(101-x)
@@ -1296,6 +1333,10 @@ statmenu.add_command(label="League Standings", command=leaguestandings)
 statmenu.add_command(label="Season Stats", command=playerstats)
 statmenu.add_command(label="League Team Data", command=league_team_data)
 menubar.add_cascade(label="Statistics", menu=statmenu)
+
+debugmenu = Menu(menubar, tearoff=0)
+debugmenu.add_command(label="Set scout rating to 99", command=scoutstat)
+menubar.add_cascade(label="DEBUG", menu=debugmenu)
 
 helpmenu = Menu(menubar, tearoff=0)
 helpmenu.add_command(label="Wiki", command=hello)
